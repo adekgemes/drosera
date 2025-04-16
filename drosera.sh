@@ -53,20 +53,33 @@ success_message "System dependencies installed"
 
 # 2. Install Docker
 echo -e "\n${YELLOW}[STEP 2]${NC} Installing Docker..."
+# Remove existing Docker packages
 for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do 
     apt-get remove -y $pkg 2>/dev/null
 done
 
+# Install required dependencies
+apt-get update -y && apt-get upgrade -y
 apt-get install -y ca-certificates curl gnupg
+
+# Setup Docker repository
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 chmod a+r /etc/apt/keyrings/docker.gpg
 
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+# Add Docker repository
+echo \
+  "deb [arch=\"$(dpkg --print-architecture)\" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  \"$(. /etc/os-release && echo "$VERSION_CODENAME")\" stable" | \
   tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io \
-    docker-buildx-plugin docker-compose-plugin || handle_error "Docker installation failed"
+# Update and install Docker
+apt-get update -y && apt-get upgrade -y
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || handle_error "Docker installation failed"
+
+# Ensure Docker service is running
+systemctl enable docker
+systemctl start docker
 
 # Test Docker
 docker run hello-world || handle_error "Docker test failed"

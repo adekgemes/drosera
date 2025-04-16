@@ -1,104 +1,58 @@
 #!/bin/bash
 
 # Drosera Network One-Click Installer
-# This script automates the installation of the Drosera Network project components
 
-# Text colors
+# Text Colors
 GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Function to display status messages
-function echo_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+# Error handling function
+handle_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+    exit 1
 }
 
-# Function to display success messages
-function echo_success() {
+# Success message function
+success_message() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
-# Function to display error messages
-function echo_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Function to display warning messages
-function echo_warning() {
+# Warn message function
+warn_message() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-# Function to prompt for input
-function prompt_input() {
-    local prompt="$1"
-    local variable="$2"
-    local default="$3"
-    local is_private="$4"
-    
-    if [ -n "$default" ]; then
-        prompt="$prompt (default: $default)"
-    fi
-    
-    if [ "$is_private" = "true" ]; then
-        read -p "$prompt: " -s temp_var
-        echo
-    else
-        read -p "$prompt: " temp_var
-    fi
-    
-    if [ -z "$temp_var" ] && [ -n "$default" ]; then
-        eval "$variable='$default'"
-    else
-        eval "$variable='$temp_var'"
-    fi
-}
-
-# Check if script is run as root
+# Check root permissions
 if [[ $EUID -ne 0 ]]; then
-   echo_error "This script must be run as root" 
-   echo "Try: sudo $0"
-   exit 1
+   handle_error "This script must be run as root. Use: sudo $0"
 fi
 
-# Print welcome banner
+# Banner
 echo -e "${GREEN}=======================================${NC}"
 echo -e "${GREEN}    Drosera Network Installer    ${NC}"
 echo -e "${GREEN}=======================================${NC}"
-echo ""
-echo "This script will install and configure all components of the Drosera Network."
-echo ""
-echo "Components to be installed:"
-echo " - Required system dependencies"
-echo " - Docker"
-echo " - Drosera CLI & Operator"
-echo " - Foundry & Bun"
-echo " - Set up and deploy a Trap"
-echo " - Configure and run the Operator node"
-echo ""
-echo_warning "You will need a funded Holesky ETH wallet for this setup!"
-echo ""
-echo -e "${YELLOW}Press ENTER to continue or CTRL+C to abort${NC}"
-read
 
-# Step 1: Install Dependencies
-echo_status "Step 1: Installing system dependencies..."
-apt-get update && apt-get upgrade -y || {
-    echo_error "Failed to update package repositories"
-    exit 1
-}
+# Prompt for critical inputs
+read -p "Enter your GitHub Email: " GITHUB_EMAIL
+read -p "Enter your GitHub Username: " GITHUB_USERNAME
+read -sp "Enter your EVM Wallet Private Key (Holesky ETH): " DROSERA_PRIVATE_KEY
+echo
+read -p "Enter your VPS/Local IP (use 'localhost' for local setup): " VPS_IP
 
-apt-get install -y curl ufw iptables build-essential git wget lz4 jq make gcc nano automake \
-    autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang \
-    bsdmainutils ncdu unzip libleveldb-dev || {
-    echo_error "Failed to install dependencies"
-    exit 1
-}
-echo_success "System dependencies installed"
+# 1. Update and Install Dependencies
+echo -e "\n${YELLOW}[STEP 1]${NC} Installing System Dependencies..."
+apt-get update && apt-get upgrade -y || handle_error "Failed to update repositories"
 
-# Step 2: Install Docker
-echo_status "Step 2: Installing Docker..."
+apt-get install -y curl ufw iptables build-essential git wget lz4 jq make gcc nano \
+    automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev \
+    libleveldb-dev tar clang bsdmainutils ncdu unzip || handle_error "Failed to install dependencies"
+
+success_message "System dependencies installed"
+
+# 2. Install Docker
+echo -e "\n${YELLOW}[STEP 2]${NC} Installing Docker..."
 for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do 
     apt-get remove -y $pkg 2>/dev/null
 done
@@ -111,99 +65,64 @@ chmod a+r /etc/apt/keyrings/docker.gpg
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
   tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-apt-get update && apt-get upgrade -y
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || {
-    echo_error "Failed to install Docker"
-    exit 1
-}
+apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io \
+    docker-buildx-plugin docker-compose-plugin || handle_error "Docker installation failed"
 
-echo_status "Testing Docker installation..."
-docker run hello-world || {
-    echo_error "Docker test failed"
-    exit 1
-}
-echo_success "Docker installed and tested successfully"
+# Test Docker
+docker run hello-world || handle_error "Docker test failed"
+success_message "Docker installed and tested"
 
-# Step 3: Install Drosera CLI
-echo_status "Step 3: Installing Drosera CLI..."
+# 3. Configure Git
+echo -e "\n${YELLOW}[STEP 3]${NC} Configuring Git..."
+git config --global user.email "$GITHUB_EMAIL"
+git config --global user.name "$GITHUB_USERNAME"
+success_message "Git configured"
+
+# 4. Install Drosera CLI & Tools
+echo -e "\n${YELLOW}[STEP 4]${NC} Installing CLI Tools..."
 curl -L https://app.drosera.io/install | bash
-echo 'source /root/.bashrc' >> /root/.bashrc
 source /root/.bashrc
 droseraup
-echo_success "Drosera CLI installed"
 
-# Step 4: Install Foundry CLI
-echo_status "Step 4: Installing Foundry CLI..."
 curl -L https://foundry.paradigm.xyz | bash
 source /root/.bashrc
 foundryup
-echo_success "Foundry CLI installed"
 
-# Step 5: Install Bun
-echo_status "Step 5: Installing Bun..."
 curl -fsSL https://bun.sh/install | bash
-echo_success "Bun installed"
+success_message "Drosera, Foundry, and Bun installed"
 
-# Step 6: Set up Git configuration
-echo_status "Step 6: Setting up Git configuration..."
-prompt_input "Enter your GitHub email" GITHUB_EMAIL
-prompt_input "Enter your GitHub username" GITHUB_USERNAME
-
-git config --global user.email "$GITHUB_EMAIL"
-git config --global user.name "$GITHUB_USERNAME"
-echo_success "Git configured with email: $GITHUB_EMAIL and username: $GITHUB_USERNAME"
-
-# Step 7: Create and set up Trap
-echo_status "Step 7: Setting up Trap..."
+# 5. Set up Trap
+echo -e "\n${YELLOW}[STEP 5]${NC} Setting up Drosera Trap..."
 mkdir -p ~/my-drosera-trap
 cd ~/my-drosera-trap
 
-echo_status "Initializing Trap..."
-forge init -t drosera-network/trap-foundry-template || {
-    echo_error "Failed to initialize Trap"
-    exit 1
-}
-
-echo_status "Compiling Trap..."
+forge init -t drosera-network/trap-foundry-template || handle_error "Trap initialization failed"
 bun install
 forge build
-echo_success "Trap compiled"
+success_message "Trap compiled"
 
-# Step 8: Deploy Trap
-echo_status "Step 8: Deploying Trap (requires Holesky ETH)..."
-prompt_input "Enter your EVM wallet private key (used for deploying the Trap)" DROSERA_PRIVATE_KEY "xxx" true
+# 6. Deploy Trap
+echo -e "\n${YELLOW}[STEP 6]${NC} Deploying Trap..."
+export DROSERA_PRIVATE_KEY="$DROSERA_PRIVATE_KEY"
+drosera apply || handle_error "Trap deployment failed"
+success_message "Trap deployed"
 
-export DROSERA_PRIVATE_KEY
-echo_warning "When prompted, type 'ofc' and press Enter to confirm deployment"
-drosera apply
-
-# Step 9: Install Operator CLI
-echo_status "Step 9: Installing Drosera Operator CLI..."
+# 7. Install Operator
+echo -e "\n${YELLOW}[STEP 7]${NC} Installing Drosera Operator..."
 cd ~
-curl -LO https://github.com/drosera-network/releases/releases/download/v1.16.2/drosera-operator-v1.16.2-x86_64-unknown-linux-gnu.tar.gz || {
-    echo_error "Failed to download Drosera Operator"
-    exit 1
-}
-
+curl -LO https://github.com/drosera-network/releases/releases/download/v1.16.2/drosera-operator-v1.16.2-x86_64-unknown-linux-gnu.tar.gz
 tar -xvf drosera-operator-v1.16.2-x86_64-unknown-linux-gnu.tar.gz
-./drosera-operator --version || {
-    echo_error "Drosera Operator installation failed"
-    exit 1
-}
-
 cp drosera-operator /usr/bin/
-echo_success "Drosera Operator installed"
+drosera-operator --version || handle_error "Operator installation failed"
+success_message "Operator installed"
 
-# Step 10: Register Operator
-echo_status "Step 10: Registering Operator..."
-drosera-operator register --eth-rpc-url https://ethereum-holesky-rpc.publicnode.com --eth-private-key "$DROSERA_PRIVATE_KEY" || {
-    echo_warning "Operator registration may have failed, please check the output above"
-}
+# 8. Register Operator
+echo -e "\n${YELLOW}[STEP 8]${NC} Registering Operator..."
+drosera-operator register --eth-rpc-url https://ethereum-holesky-rpc.publicnode.com --eth-private-key "$DROSERA_PRIVATE_KEY"
+success_message "Operator registered"
 
-# Step 11: Create Operator systemd service
-echo_status "Step 11: Creating Operator systemd service..."
-prompt_input "Enter your VPS IP address (or localhost for local setup)" VPS_IP
-
+# 9. Create Systemd Service
+echo -e "\n${YELLOW}[STEP 9]${NC} Creating Operator Systemd Service..."
 cat > /etc/systemd/system/drosera.service << EOF
 [Unit]
 Description=drosera node service
@@ -218,58 +137,50 @@ ExecStart=$(which drosera-operator) node --db-file-path /root/.drosera.db --netw
     --eth-rpc-url https://ethereum-holesky-rpc.publicnode.com \
     --eth-backup-rpc-url https://1rpc.io/holesky \
     --drosera-address 0xea08f7d533C2b9A62F40D5326214f39a8E3A32F8 \
-    --eth-private-key ${DROSERA_PRIVATE_KEY} \
+    --eth-private-key $DROSERA_PRIVATE_KEY \
     --listen-address 0.0.0.0 \
-    --network-external-p2p-address ${VPS_IP} \
+    --network-external-p2p-address $VPS_IP \
     --disable-dnr-confirmation true
 
 [Install]
 WantedBy=multi-user.target
 EOF
-echo_success "Created systemd service file"
+success_message "Systemd service created"
 
-# Step 12: Configure firewall
-echo_status "Step 12: Configuring firewall..."
+# 10. Configure Firewall
+echo -e "\n${YELLOW}[STEP 10]${NC} Configuring Firewall..."
 ufw allow ssh
 ufw allow 22
 ufw allow 31313/tcp
 ufw allow 31314/tcp
 echo "y" | ufw enable
-echo_success "Firewall configured"
+success_message "Firewall configured"
 
-# Step 13: Start Operator node
-echo_status "Step 13: Starting Operator node..."
+# 11. Start Operator
+echo -e "\n${YELLOW}[STEP 11]${NC} Starting Operator Node..."
 systemctl daemon-reload
 systemctl enable drosera
 systemctl start drosera
-echo_success "Operator node started"
+success_message "Operator node started"
 
-# Step 14: Check Trap setup
-echo_status "Step 14: Whitelist your operator in the Trap..."
+# 12. Final Trap Configuration
+echo -e "\n${YELLOW}[STEP 12]${NC} Finalizing Trap Configuration..."
 cd ~/my-drosera-trap
-prompt_input "Enter your EVM wallet address to whitelist as operator" OPERATOR_ADDRESS
-
+OPERATOR_ADDRESS=$(drosera-operator wallet address)
 echo -e "\nprivate_trap = true\nwhitelist = [\"$OPERATOR_ADDRESS\"]" >> drosera.toml
-export DROSERA_PRIVATE_KEY
 drosera apply
-echo_success "Operator whitelisted in the Trap"
+success_message "Operator whitelisted in Trap"
 
-# Print summary
+# Completion Banner
+echo -e "\n${GREEN}=======================================${NC}"
+echo -e "${GREEN}    Drosera Network Setup Complete    ${NC}"
 echo -e "${GREEN}=======================================${NC}"
-echo -e "${GREEN}    Installation Complete    ${NC}"
-echo -e "${GREEN}=======================================${NC}"
-echo ""
-echo -e "${YELLOW}Next Steps:${NC}"
-echo "1. Check your node health with: journalctl -u drosera.service -f"
-echo "2. Visit https://app.drosera.io/ to connect your wallet"
-echo "3. Find your Trap in the 'Traps Owned' section"
-echo "4. Boost your Trap with Holesky ETH using the 'Send Bloom Boost' option"
-echo "5. Opt-in your Operator to the Trap from the dashboard"
-echo ""
-echo "Useful commands:"
-echo " - Check node logs: journalctl -u drosera.service -f"
-echo " - Stop node: sudo systemctl stop drosera"
-echo " - Restart node: sudo systemctl restart drosera"
-echo " - Run a dry run: drosera dryrun"
-echo ""
-echo -e "${GREEN}Thank you for installing Drosera Network!${NC}"
+
+echo -e "\n${YELLOW}Next Steps:${NC}"
+echo "1. Check node health: journalctl -u drosera.service -f"
+echo "2. Visit https://app.drosera.io/ to connect wallet"
+echo "3. Find your Trap in 'Traps Owned'"
+echo "4. Boost Trap with Holesky ETH"
+echo "5. Opt-in Operator from dashboard"
+
+exit 0

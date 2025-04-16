@@ -29,7 +29,23 @@ if [[ $EUID -ne 0 ]]; then
    handle_error "This script must be run as root. Use: sudo $0"
 fi
 
-# Banner
+# Logo and Banner Function
+display_logo() {
+    echo -e "${GREEN}"
+    cat << "EOF"
+ ____  ____  ____  ____  ___  ____    __    __  __ 
+(  _ \(  __)/ ___|/ ___)(  _)(  _ \  /__\  (  \/  )
+ )   / )(_) \___ \\___ \ ) _) )   / /(__)\  )    ( 
+(_)\_)(____)(____/(____/(____)(_)\_)(__)(__(__)\_)
+        NETWORK INSTALLER
+EOF
+    echo -e "${NC}"
+}
+
+# Display Logo
+display_logo
+
+# Main Banner
 echo -e "${GREEN}=======================================${NC}"
 echo -e "${GREEN}    Drosera Network Installer    ${NC}"
 echo -e "${GREEN}=======================================${NC}"

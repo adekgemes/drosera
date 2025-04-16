@@ -1,228 +1,144 @@
 #!/bin/bash
 
-# Drosera Network One-Click Installer
+# Display Logo Banner
+curl -s https://raw.githubusercontent.com/dlzvy/LOGOTES/main/logo1.sh | bash
+sleep 5
 
-# Text Colors
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+# Drosera Network One-Installer Script
 
-# Error handling function
-handle_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-    exit 1
-}
+# Update and Upgrade System
+echo "Updating and upgrading system..."
+sudo apt-get update && sudo apt-get upgrade -y
 
-# Success message function
-success_message() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-# Warn message function
-warn_message() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-# Check root permissions
-if [[ $EUID -ne 0 ]]; then
-   handle_error "This script must be run as root. Use: sudo $0"
-fi
-
-# Logo and Banner Function
-display_logo() {
-    echo -e "\e[1;33m
-\e[1;31m███████╗\e[1;33m ██████╗\e[1;32m █████╗\e[1;36m ██╗   ██╗\e[1;35m███████╗\e[1;34m███╗   ██╗\e[1;33m ██████╗\e[1;32m ███████╗\e[1;36m██████╗ 
-\e[1;33m██╔════╝\e[1;32m██╔════╝\e[1;36m██╔══██╗\e[1;35m██║   ██║\e[1;34m██╔════╝\e[1;33m████╗  ██║\e[1;32m██╔════╝\e[1;36m ██╔════╝\e[1;35m██╔══██╗
-\e[1;32m███████╗\e[1;36m██║     \e[1;35m███████║\e[1;34m██║   ██║\e[1;33m█████╗  \e[1;32m██╔██╗ ██║\e[1;36m██║  ███╗\e[1;35m█████╗  \e[1;34m██████╔╝
-\e[1;36m╚════██║\e[1;35m██║     \e[1;34m██╔══██║\e[1;33m╚██╗ ██╔╝\e[1;32m██╔══╝  \e[1;36m██║╚██╗██║\e[1;35m██║   ██║\e[1;34m██╔══╝  \e[1;33m██╔══██╗
-\e[1;35m███████║\e[1;34m╚██████╗\e[1;33m██║  ██║\e[1;32m ╚████╔╝ \e[1;36m███████╗\e[1;35m██║ ╚████║\e[1;34m╚██████╔╝\e[1;33m███████╗\e[1;32m██║  ██║
-\e[1;34m╚══════╝\e[1;33m ╚═════╝\e[1;32m╚═╝  ╚═╝\e[1;36m  ╚═══╝  \e[1;35m╚══════╝\e[1;34m╚═╝  ╚═══╝\e[1;33m ╚═════╝ \e[1;32m╚══════╝\e[1;36m╚═╝  ╚═╝
-\e[1;31m █████╗ \e[1;33m██╗\e[1;32m██████╗ \e[1;36m██████╗ \e[1;35m██████╗ \e[1;34m ██████╗ \e[1;33m██████╗     
-\e[1;33m██╔══██╗\e[1;32m██║\e[1;36m██╔══██╗\e[1;35m██╔══██╗\e[1;34m██╔══██╗\e[1;33m██╔═══██╗\e[1;32m██╔══██╗    
-\e[1;32m███████║\e[1;36m██║\e[1;35m██████╔╝\e[1;34m██║  ██║\e[1;33m██████╔╝\e[1;32m██║   ██║\e[1;36m██████╔╝    
-\e[1;36m██╔══██║\e[1;35m██║\e[1;34m██╔══██╗\e[1;33m██║  ██║\e[1;32m██╔══██╗\e[1;36m██║   ██║\e[1;35m██╔═══╝     
-\e[1;35m██║  ██║\e[1;34m██║\e[1;33m██║  ██║\e[1;32m██████╔╝\e[1;36m██║  ██║\e[1;35m╚██████╔╝\e[1;34m██║         
-\e[1;34m╚═╝  ╚═╝\e[1;33m╚═╝\e[1;32m╚═╝  ╚═╝\e[1;36m╚═════╝ \e[1;35m╚═╝  ╚═╝\e[1;34m ╚═════╝ \e[1;33m╚═╝ 
-                                                                                      
-\e[1;34m               \e[1;37m\e[1;5mJoin the scavenger airdrop Now!\e[0m
-\e[1;32m╔════════════════════════════════════════════════════════╗
-\e[1;32m║                                                        ║
-\e[1;32m║   Telegram Group:  \e[1;4;33mhttps://t.me/scavengerairdrop\e[0m\e[1;32m   ║
-\e[1;32m║                                                        ║
-\e[1;32m║   Follow Me On GitHub:  \e[1;4;36mhttps://github.com/dlzvy\e[0m\e[1;32m   ║
-\e[1;32m║                                                        ║
-\e[1;32m╚════════════════════════════════════════════════════════╝"
-}
-
-# Display Logo
-display_logo
-
-# Main Banner
-echo -e "${GREEN}=======================================${NC}"
-echo -e "${GREEN}    Drosera Network Installer    ${NC}"
-echo -e "${GREEN}=======================================${NC}"
-
-# Prompt for critical inputs
-read -p "Enter your GitHub Email: " GITHUB_EMAIL
-read -p "Enter your GitHub Username: " GITHUB_USERNAME
-read -sp "Enter your EVM Wallet Private Key (Holesky ETH): " DROSERA_PRIVATE_KEY
-echo
-read -p "Enter your VPS/Local IP (use 'localhost' for local setup): " VPS_IP
-
-# 1. Update and Install Dependencies
-echo -e "\n${YELLOW}[STEP 1]${NC} Installing System Dependencies..."
-apt-get update && apt-get upgrade -y || handle_error "Failed to update repositories"
-
-apt-get install -y curl ufw iptables build-essential git wget lz4 jq make gcc nano \
+# Install Dependencies
+echo "Installing required dependencies..."
+sudo apt install -y curl ufw iptables build-essential git wget lz4 jq make gcc nano \
     automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev \
-    libleveldb-dev tar clang bsdmainutils ncdu unzip || handle_error "Failed to install dependencies"
+    libleveldb-dev tar clang bsdmainutils ncdu unzip
 
-success_message "System dependencies installed"
-
-# 2. Install Docker
-echo -e "\n${YELLOW}[STEP 2]${NC} Installing Docker..."
 # Remove existing Docker packages
+echo "Preparing Docker installation..."
 for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do 
-    apt-get remove -y $pkg 2>/dev/null
+    sudo apt-get remove $pkg; 
 done
 
-# Install required dependencies
-apt-get update -y && apt-get upgrade -y
-apt-get install -y ca-certificates curl gnupg
+# Install Docker
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-# Setup Docker repository
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-chmod a+r /etc/apt/keyrings/docker.gpg
-
-# Add Docker repository
 echo \
   "deb [arch=\"$(dpkg --print-architecture)\" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
   \"$(. /etc/os-release && echo "$VERSION_CODENAME")\" stable" | \
-  tee /etc/apt/sources.list.d/docker.list > /dev/null
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Update and install Docker
-apt-get update -y && apt-get upgrade -y
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || handle_error "Docker installation failed"
-
-# Ensure Docker service is running
-systemctl enable docker
-systemctl start docker
+sudo apt update -y && sudo apt upgrade -y
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Test Docker
-docker run hello-world || handle_error "Docker test failed"
-success_message "Docker installed and tested"
+echo "Testing Docker installation..."
+sudo docker run hello-world
 
-# 3. Configure Git
-echo -e "\n${YELLOW}[STEP 3]${NC} Configuring Git..."
-git config --global user.email "$GITHUB_EMAIL"
-git config --global user.name "$GITHUB_USERNAME"
-success_message "Git configured"
-
-# 4. Install Drosera CLI & Tools
-echo -e "\n${YELLOW}[STEP 4]${NC} Installing CLI Tools..."
+# Install Drosera CLI
+echo "Installing Drosera CLI..."
 curl -L https://app.drosera.io/install | bash
 source /root/.bashrc
 droseraup
 
+# Install Foundry CLI
+echo "Installing Foundry CLI..."
 curl -L https://foundry.paradigm.xyz | bash
 source /root/.bashrc
 foundryup
 
+# Install Bun
+echo "Installing Bun..."
 curl -fsSL https://bun.sh/install | bash
-success_message "Drosera, Foundry, and Bun installed"
 
-# 5. Set up Trap
-echo -e "\n${YELLOW}[STEP 5]${NC} Setting up Drosera Trap..."
+# Prompt for necessary configurations
+read -p "Enter your Github Email: " github_email
+read -p "Enter your Github Username: " github_username
+read -p "Enter your EVM Wallet Private Key: " private_key
+read -p "Enter your Operator Address: " operator_address
+read -p "Enter your VPS IP (use localhost if local): " vps_ip
+
+# Setup Git Configuration
+git config --global user.email "$github_email"
+git config --global user.name "$github_username"
+
+# Prepare Drosera Trap
+echo "Setting up Drosera Trap..."
 mkdir -p ~/my-drosera-trap
 cd ~/my-drosera-trap
 
-forge init -t drosera-network/trap-foundry-template || handle_error "Trap initialization failed"
+# Initialize and Build Trap
+forge init -t drosera-network/trap-foundry-template
 bun install
 forge build
-success_message "Trap compiled"
 
-# 6. Deploy Trap
-echo -e "\n${YELLOW}[STEP 6]${NC} Deploying Trap..."
-export DROSERA_PRIVATE_KEY="$DROSERA_PRIVATE_KEY"
-drosera apply || handle_error "Trap deployment failed"
-success_message "Trap deployed"
+# Deploy Trap
+export DROSERA_PRIVATE_KEY="$private_key"
+drosera apply
 
-# 7. Install Operator
-echo -e "\n${YELLOW}[STEP 7]${NC} Installing Drosera Operator..."
+# Configure Trap as Private
+cat << EOF >> drosera.toml
+private_trap = true
+whitelist = ["$operator_address"]
+EOF
+
+# Reapply Trap Configuration
+drosera apply
+
+# Install Operator CLI
+echo "Installing Drosera Operator CLI..."
 cd ~
 curl -LO https://github.com/drosera-network/releases/releases/download/v1.16.2/drosera-operator-v1.16.2-x86_64-unknown-linux-gnu.tar.gz
 tar -xvf drosera-operator-v1.16.2-x86_64-unknown-linux-gnu.tar.gz
-cp drosera-operator /usr/bin/
-drosera-operator --version || handle_error "Operator installation failed"
-success_message "Operator installed"
+sudo cp drosera-operator /usr/bin
 
-# 8. Register Operator
-echo -e "\n${YELLOW}[STEP 8]${NC} Registering Operator..."
-drosera-operator register --eth-rpc-url https://ethereum-holesky-rpc.publicnode.com --eth-private-key "$DROSERA_PRIVATE_KEY"
-success_message "Operator registered"
+# Register Operator
+drosera-operator register --eth-rpc-url https://ethereum-holesky-rpc.publicnode.com --eth-private-key "$private_key"
 
-# 9. Create Systemd Service
-echo -e "\n${YELLOW}[STEP 9]${NC} Creating Operator Systemd Service..."
-cat > /etc/systemd/system/drosera.service << EOF
+# Create Systemd Service
+sudo tee /etc/systemd/system/drosera.service > /dev/null <<EOF
 [Unit]
 Description=drosera node service
 After=network-online.target
 
 [Service]
-User=root
+User=$USER
 Restart=always
 RestartSec=15
 LimitNOFILE=65535
-ExecStart=$(which drosera-operator) node --db-file-path /root/.drosera.db --network-p2p-port 31313 --server-port 31314 \
+ExecStart=$(which drosera-operator) node --db-file-path $HOME/.drosera.db --network-p2p-port 31313 --server-port 31314 \
     --eth-rpc-url https://ethereum-holesky-rpc.publicnode.com \
     --eth-backup-rpc-url https://1rpc.io/holesky \
     --drosera-address 0xea08f7d533C2b9A62F40D5326214f39a8E3A32F8 \
-    --eth-private-key $DROSERA_PRIVATE_KEY \
+    --eth-private-key "$private_key" \
     --listen-address 0.0.0.0 \
-    --network-external-p2p-address $VPS_IP \
+    --network-external-p2p-address "$vps_ip" \
     --disable-dnr-confirmation true
 
 [Install]
 WantedBy=multi-user.target
 EOF
-success_message "Systemd service created"
 
-# 10. Configure Firewall
-echo -e "\n${YELLOW}[STEP 10]${NC} Configuring Firewall..."
-ufw allow ssh
-ufw allow 22
-ufw allow 31313/tcp
-ufw allow 31314/tcp
-echo "y" | ufw enable
-success_message "Firewall configured"
+# Configure Firewall
+echo "Configuring Firewall..."
+sudo ufw allow ssh
+sudo ufw allow 22
+sudo ufw allow 31313/tcp
+sudo ufw allow 31314/tcp
+sudo ufw enable
 
-# 11. Start Operator
-echo -e "\n${YELLOW}[STEP 11]${NC} Starting Operator Node..."
-systemctl daemon-reload
-systemctl enable drosera
-systemctl start drosera
-success_message "Operator node started"
+# Start Drosera Operator
+echo "Starting Drosera Operator..."
+sudo systemctl daemon-reload
+sudo systemctl enable drosera
+sudo systemctl start drosera
 
-# 12. Final Trap Configuration
-echo -e "\n${YELLOW}[STEP 12]${NC} Finalizing Trap Configuration..."
-cd ~/my-drosera-trap
-OPERATOR_ADDRESS=$(drosera-operator wallet address)
-echo -e "\nprivate_trap = true\nwhitelist = [\"$OPERATOR_ADDRESS\"]" >> drosera.toml
-drosera apply
-success_message "Operator whitelisted in Trap"
-
-# Completion Banner
-echo -e "\n${GREEN}=======================================${NC}"
-echo -e "${GREEN}    Drosera Network Setup Complete    ${NC}"
-echo -e "${GREEN}=======================================${NC}"
-
-echo -e "\n${YELLOW}Next Steps:${NC}"
-echo "1. Check node health: journalctl -u drosera.service -f"
-echo "2. Visit https://app.drosera.io/ to connect wallet"
-echo "3. Find your Trap in 'Traps Owned'"
-echo "4. Boost Trap with Holesky ETH"
-echo "5. Opt-in Operator from dashboard"
-
-exit 0
+echo "Drosera Network setup complete!"
+echo "Check node health with: journalctl -u drosera.service -f"
+echo "Remember to opt-in your trap in the Drosera dashboard."

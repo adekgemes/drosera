@@ -74,7 +74,8 @@ apt-get update && apt-get upgrade -y
 check_success "System update"
 
 print_message "Installing dependencies..."
-apt install curl ufw iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip libleveldb-dev -y
+apt install curl ufw iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip libleveldb-dev python3-pip -y
+pip3 install web3
 check_success "Dependencies installation"
 
 print_message "Installing Docker..."
@@ -98,19 +99,33 @@ check_success "Docker test"
 
 print_message "Installing Drosera CLI..."
 curl -L https://app.drosera.io/install | bash
-source /root/.bashrc
-droseraup
+source $HOME/.bashrc
+export PATH="$HOME/.drosera/bin:$PATH"
+# Instead of calling droseraup directly, check if it exists
+if [ -f "$HOME/.drosera/bin/droseraup" ]; then
+    $HOME/.drosera/bin/droseraup
+elif [ -f "$HOME/.local/bin/droseraup" ]; then
+    $HOME/.local/bin/droseraup
+else
+    print_warning "droseraup command not found, but continuing with installation"
+fi
 check_success "Drosera CLI installation"
 
 print_message "Installing Foundry CLI..."
 curl -L https://foundry.paradigm.xyz | bash
-source /root/.bashrc
-foundryup
+source $HOME/.bashrc
+export PATH="$HOME/.foundry/bin:$PATH"
+# Check if foundryup exists
+if [ -f "$HOME/.foundry/bin/foundryup" ]; then
+    $HOME/.foundry/bin/foundryup
+else
+    print_warning "foundryup command not found, but continuing with installation"
+fi
 check_success "Foundry CLI installation"
 
 print_message "Installing Bun..."
 curl -fsSL https://bun.sh/install | bash
-source /root/.bashrc
+source $HOME/.bashrc
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 check_success "Bun installation"
@@ -123,18 +138,34 @@ git config --global user.email "$GITHUB_EMAIL"
 git config --global user.name "$GITHUB_USERNAME"
 
 print_message "Initializing Trap..."
-forge init -t drosera-network/trap-foundry-template
+if command -v forge &> /dev/null; then
+    forge init -t drosera-network/trap-foundry-template
+else
+    $HOME/.foundry/bin/forge init -t drosera-network/trap-foundry-template
+fi
 check_success "Trap initialization"
 
 print_message "Compiling Trap..."
-bun install
-forge build
+if command -v bun &> /dev/null; then
+    bun install
+else
+    $HOME/.bun/bin/bun install
+fi
+
+if command -v forge &> /dev/null; then
+    forge build
+else
+    $HOME/.foundry/bin/forge build
+fi
 check_success "Trap compilation"
 
 print_message "Deploying Trap..."
-echo "DROSERA_PRIVATE_KEY=$DROSERA_PRIVATE_KEY drosera apply"
 echo "When prompted, type 'ofc' and press Enter"
-DROSERA_PRIVATE_KEY=$DROSERA_PRIVATE_KEY drosera apply
+if command -v drosera &> /dev/null; then
+    DROSERA_PRIVATE_KEY=$DROSERA_PRIVATE_KEY drosera apply
+else
+    DROSERA_PRIVATE_KEY=$DROSERA_PRIVATE_KEY $HOME/.drosera/bin/drosera apply || DROSERA_PRIVATE_KEY=$DROSERA_PRIVATE_KEY $HOME/.local/bin/drosera apply
+fi
 
 print_message "Configuring private trap..."
 cat >> drosera.toml << EOF
@@ -144,7 +175,11 @@ whitelist = ["$(echo $DROSERA_PRIVATE_KEY | python3 -c "import sys, web3; pk = s
 EOF
 
 print_message "Updating trap configuration..."
-DROSERA_PRIVATE_KEY=$DROSERA_PRIVATE_KEY drosera apply
+if command -v drosera &> /dev/null; then
+    DROSERA_PRIVATE_KEY=$DROSERA_PRIVATE_KEY drosera apply
+else
+    DROSERA_PRIVATE_KEY=$DROSERA_PRIVATE_KEY $HOME/.drosera/bin/drosera apply || DROSERA_PRIVATE_KEY=$DROSERA_PRIVATE_KEY $HOME/.local/bin/drosera apply
+fi
 
 print_message "Installing Operator CLI..."
 cd ~

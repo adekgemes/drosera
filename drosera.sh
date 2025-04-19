@@ -4,7 +4,7 @@
 # This script automates the installation of Drosera Network node
 
 # Display logo
-curl -s https://raw.githubusercontent.com/dlzvy/LOGOTES/main/logo1.sh | bash
+curl -s https://raw.githubusercontent.com/dlzvy/LOGOTES/main/logo3.sh | bash
 sleep 5
 
 # Text colors

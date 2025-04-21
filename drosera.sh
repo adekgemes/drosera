@@ -106,49 +106,56 @@ print_yellow "Installing Drosera..."
 curl -L https://app.drosera.io/install | bash
 check_error "installing Drosera"
 
-# Properly export the PATH to include the Drosera binaries
-print_yellow "Setting up Drosera in PATH..."
-export PATH="$HOME/.drosera/bin:$PATH"
+# Manually source the updated PATH
 if [ -f "/root/.bashrc" ]; then
     source /root/.bashrc
 fi
+export PATH="$HOME/.drosera/bin:$PATH"
 
-# Install Drosera directly instead of using droseraup
-print_yellow "Installing Drosera CLI..."
-curl -L https://github.com/drosera-network/releases/releases/download/v1.16.2/drosera-cli-v1.16.2-x86_64-unknown-linux-gnu.tar.gz -o drosera-cli.tar.gz
-tar -xzf drosera-cli.tar.gz
-sudo mv drosera /usr/local/bin/
-check_error "installing Drosera CLI"
+# Try to run droseraup if available, otherwise continue
+print_yellow "Running droseraup if available..."
+if command -v droseraup &> /dev/null; then
+    droseraup
+    print_green "Drosera CLI installed via droseraup."
+else
+    print_yellow "droseraup not found, proceeding without it..."
+fi
 
 print_yellow "Installing Foundry..."
 curl -L https://foundry.paradigm.xyz | bash
 check_error "installing Foundry"
 
-# Source foundryup command
-if [ -f "/root/.foundry/bin/foundryup" ]; then
-    export PATH="$PATH:/root/.foundry/bin"
-    /root/.foundry/bin/foundryup
+# Source the updated PATH for foundry
+if [ -f "/root/.bashrc" ]; then
+    source /root/.bashrc
+fi
+export PATH="$HOME/.foundry/bin:$PATH"
+
+# Try to run foundryup if available
+print_yellow "Running foundryup if available..."
+if command -v foundryup &> /dev/null; then
+    foundryup
+    print_green "Foundry installed via foundryup."
 else
-    print_yellow "Foundryup not found at expected location, trying alternative..."
+    print_yellow "foundryup not found, trying to find it in common locations..."
     if [ -f "$HOME/.foundry/bin/foundryup" ]; then
-        export PATH="$PATH:$HOME/.foundry/bin"
         $HOME/.foundry/bin/foundryup
+        print_green "Foundry installed via local foundryup."
     else
-        print_red "Could not locate foundryup. Continuing anyway..."
+        print_yellow "foundryup not found, proceeding without it..."
     fi
 fi
-check_error "running foundryup"
 
 print_yellow "Installing Bun..."
 curl -fsSL https://bun.sh/install | bash
 check_error "installing Bun"
 
-# Export Bun to PATH
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
+# Source the updated PATH for bun
 if [ -f "/root/.bashrc" ]; then
     source /root/.bashrc
 fi
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
 
 print_yellow "Setting up Drosera trap project..."
 mkdir -p my-drosera-trap
@@ -157,44 +164,44 @@ cd my-drosera-trap
 git config --global user.email "$GITHUB_EMAIL"
 git config --global user.name "$GITHUB_USERNAME"
 
-# Use direct forge command with full path if needed
+# Check for forge and use it with explicit path if necessary
+print_yellow "Initializing trap foundry template..."
 if command -v forge &> /dev/null; then
     forge init -t drosera-network/trap-foundry-template
+    check_error "initializing trap foundry template"
+elif [ -f "$HOME/.foundry/bin/forge" ]; then
+    $HOME/.foundry/bin/forge init -t drosera-network/trap-foundry-template
+    check_error "initializing trap foundry template with local forge"
 else
-    if [ -f "$HOME/.foundry/bin/forge" ]; then
-        $HOME/.foundry/bin/forge init -t drosera-network/trap-foundry-template
-    else
-        print_red "forge command not found. Please install Foundry manually."
-        exit 1
-    fi
+    print_red "forge command not found. Please install Foundry manually and try again."
+    exit 1
 fi
-check_error "initializing trap foundry template"
 
-# Run bun install with full path if needed
+# Check for bun and use it with explicit path if necessary
+print_yellow "Installing dependencies with bun..."
 if command -v bun &> /dev/null; then
     bun install
+    check_error "running bun install"
+elif [ -f "$HOME/.bun/bin/bun" ]; then
+    $HOME/.bun/bin/bun install
+    check_error "running bun install with local bun"
 else
-    if [ -f "$HOME/.bun/bin/bun" ]; then
-        $HOME/.bun/bin/bun install
-    else
-        print_red "bun command not found. Please install Bun manually."
-        exit 1
-    fi
+    print_red "bun command not found. Please install Bun manually and try again."
+    exit 1
 fi
-check_error "running bun install"
 
-# Run forge build with full path if needed
+# Build the project with forge
+print_yellow "Building the project..."
 if command -v forge &> /dev/null; then
     forge build
+    check_error "running forge build"
+elif [ -f "$HOME/.foundry/bin/forge" ]; then
+    $HOME/.foundry/bin/forge build
+    check_error "running forge build with local forge"
 else
-    if [ -f "$HOME/.foundry/bin/forge" ]; then
-        $HOME/.foundry/bin/forge build
-    else
-        print_red "forge command not found. Please install Foundry manually."
-        exit 1
-    fi
+    print_red "forge command not found. Please install Foundry manually and try again."
+    exit 1
 fi
-check_error "running forge build"
 
 print_yellow "Configuring drosera.toml..."
 cat <<EOF >> drosera.toml

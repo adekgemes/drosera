@@ -95,10 +95,15 @@ function install_drosera_cli {
     echo -e "${YELLOW}Menginstall Drosera CLI...${NC}"
     line
     
+    # Source bash profile sebelum instalasi
+    source /root/.bashrc
+    
     curl -L https://app.drosera.io/install | bash
     check_status $?
     
+    # Source lagi setelah instalasi
     source /root/.bashrc
+    
     droseraup
     
     echo -e "${GREEN}Drosera CLI berhasil diinstall!${NC}"
@@ -109,10 +114,15 @@ function install_foundry {
     echo -e "${YELLOW}Menginstall Foundry CLI...${NC}"
     line
     
+    # Source bash profile sebelum instalasi
+    source /root/.bashrc
+    
     curl -L https://foundry.paradigm.xyz | bash
     check_status $?
     
+    # Source lagi setelah instalasi
     source /root/.bashrc
+    
     foundryup
     
     echo -e "${GREEN}Foundry CLI berhasil diinstall!${NC}"
@@ -123,9 +133,13 @@ function install_bun {
     echo -e "${YELLOW}Menginstall Bun...${NC}"
     line
     
+    # Source bash profile sebelum instalasi
+    source /root/.bashrc
+    
     curl -fsSL https://bun.sh/install | bash
     check_status $?
     
+    # Source lagi setelah instalasi
     source /root/.bashrc
     
     echo -e "${GREEN}Bun berhasil diinstall!${NC}"
@@ -401,6 +415,35 @@ function check_node_status {
     fi
 }
 
+function setup_trap_environment {
+    line
+    echo -e "${YELLOW}Setup Trap Environment (Drosera, Foundry, Bun CLI)...${NC}"
+    line
+    
+    # Pastikan source bash profile sebelum setiap instalasi
+    source /root/.bashrc
+    
+    # Install Drosera CLI
+    install_drosera_cli
+    
+    # Source lagi untuk memastikan perubahan diterapkan
+    source /root/.bashrc
+    
+    # Install Foundry CLI
+    install_foundry
+    
+    # Source lagi untuk memastikan perubahan diterapkan
+    source /root/.bashrc
+    
+    # Install Bun
+    install_bun
+    
+    # Source lagi untuk memastikan perubahan diterapkan
+    source /root/.bashrc
+    
+    echo -e "${GREEN}Setup Trap Environment berhasil diselesaikan!${NC}"
+}
+
 function show_menu {
     clear
     curl -s https://raw.githubusercontent.com/dlzvy/LOGOTES/main/logo3.sh | bash
@@ -432,12 +475,7 @@ function show_menu {
         1) install_dependencies ;;
         2) install_docker ;;
         3) configure_rpc ;;
-        4) 
-            source /root/.bashrc
-            install_drosera_cli
-            install_foundry
-            install_bun
-            ;;
+        4) setup_trap_environment ;;
         5) 
             source /root/.bashrc
             setup_trap
@@ -456,10 +494,7 @@ function show_menu {
             install_dependencies
             install_docker
             configure_rpc
-            source /root/.bashrc
-            install_drosera_cli
-            install_foundry
-            install_bun
+            setup_trap_environment
             setup_trap
             deploy_trap
             config_whitelist_operator

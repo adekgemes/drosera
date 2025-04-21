@@ -106,38 +106,94 @@ print_yellow "Installing Drosera..."
 curl -L https://app.drosera.io/install | bash
 check_error "installing Drosera"
 
-source /root/.bashrc
-droseraup
-check_error "running droseraup"
+# Properly export the PATH to include the Drosera binaries
+print_yellow "Setting up Drosera in PATH..."
+export PATH="$HOME/.drosera/bin:$PATH"
+if [ -f "/root/.bashrc" ]; then
+    source /root/.bashrc
+fi
+
+# Install Drosera directly instead of using droseraup
+print_yellow "Installing Drosera CLI..."
+curl -L https://github.com/drosera-network/releases/releases/download/v1.16.2/drosera-cli-v1.16.2-x86_64-unknown-linux-gnu.tar.gz -o drosera-cli.tar.gz
+tar -xzf drosera-cli.tar.gz
+sudo mv drosera /usr/local/bin/
+check_error "installing Drosera CLI"
 
 print_yellow "Installing Foundry..."
 curl -L https://foundry.paradigm.xyz | bash
 check_error "installing Foundry"
 
-source /root/.bashrc
-foundryup
+# Source foundryup command
+if [ -f "/root/.foundry/bin/foundryup" ]; then
+    export PATH="$PATH:/root/.foundry/bin"
+    /root/.foundry/bin/foundryup
+else
+    print_yellow "Foundryup not found at expected location, trying alternative..."
+    if [ -f "$HOME/.foundry/bin/foundryup" ]; then
+        export PATH="$PATH:$HOME/.foundry/bin"
+        $HOME/.foundry/bin/foundryup
+    else
+        print_red "Could not locate foundryup. Continuing anyway..."
+    fi
+fi
 check_error "running foundryup"
 
 print_yellow "Installing Bun..."
 curl -fsSL https://bun.sh/install | bash
 check_error "installing Bun"
 
-source /root/.bashrc
+# Export Bun to PATH
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+if [ -f "/root/.bashrc" ]; then
+    source /root/.bashrc
+fi
 
 print_yellow "Setting up Drosera trap project..."
-mkdir my-drosera-trap
+mkdir -p my-drosera-trap
 cd my-drosera-trap
 
 git config --global user.email "$GITHUB_EMAIL"
 git config --global user.name "$GITHUB_USERNAME"
 
-forge init -t drosera-network/trap-foundry-template
+# Use direct forge command with full path if needed
+if command -v forge &> /dev/null; then
+    forge init -t drosera-network/trap-foundry-template
+else
+    if [ -f "$HOME/.foundry/bin/forge" ]; then
+        $HOME/.foundry/bin/forge init -t drosera-network/trap-foundry-template
+    else
+        print_red "forge command not found. Please install Foundry manually."
+        exit 1
+    fi
+fi
 check_error "initializing trap foundry template"
 
-bun install
+# Run bun install with full path if needed
+if command -v bun &> /dev/null; then
+    bun install
+else
+    if [ -f "$HOME/.bun/bin/bun" ]; then
+        $HOME/.bun/bin/bun install
+    else
+        print_red "bun command not found. Please install Bun manually."
+        exit 1
+    fi
+fi
 check_error "running bun install"
 
-forge build
+# Run forge build with full path if needed
+if command -v forge &> /dev/null; then
+    forge build
+else
+    if [ -f "$HOME/.foundry/bin/forge" ]; then
+        $HOME/.foundry/bin/forge build
+    else
+        print_red "forge command not found. Please install Foundry manually."
+        exit 1
+    fi
+fi
 check_error "running forge build"
 
 print_yellow "Configuring drosera.toml..."
@@ -168,7 +224,7 @@ sudo ufw allow ssh
 sudo ufw allow 22
 sudo ufw allow 31313/tcp
 sudo ufw allow 31314/tcp
-sudo ufw enable
+echo "y" | sudo ufw enable
 check_error "configuring firewall"
 
 print_yellow "Creating systemd service..."

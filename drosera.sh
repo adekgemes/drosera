@@ -98,14 +98,26 @@ function install_drosera_cli {
     curl -L https://app.drosera.io/install | bash
     check_status $?
     
-    echo -e "${YELLOW}Melakukan source bash profile...${NC}"
+    echo -e "${YELLOW}Melakukan konfigurasi PATH...${NC}"
     
-    # Ekspor PATH untuk CLI yang baru diinstal
+    # Hapus entri yang sudah ada untuk mencegah duplikasi
+    sed -i '/export PATH.*\.drosera\/bin/d' $HOME/.bashrc
+    
+    # Tambahkan path ke .bashrc
     echo 'export PATH="$HOME/.drosera/bin:$PATH"' >> $HOME/.bashrc
+    
+    # Ekspor PATH untuk sesi saat ini
     export PATH="$HOME/.drosera/bin:$PATH"
     
+    # Jalankan installer lagi jika diperlukan
+    if [ -f "$HOME/.drosera/bin/droseraup" ]; then
+        echo -e "${YELLOW}Menjalankan droseraup untuk menginstal CLI...${NC}"
+        $HOME/.drosera/bin/droseraup
+    fi
+    
     echo -e "${GREEN}Drosera CLI berhasil diinstall!${NC}"
-    echo -e "${YELLOW}Catatan: Jalankan 'source /root/.bashrc' secara manual jika mengalami masalah dengan command drosera${NC}"
+    echo -e "${YELLOW}Cek instalasi: ${NC}which drosera"
+    which drosera || echo -e "${RED}drosera tidak ditemukan dalam PATH${NC}"
 }
 
 function install_foundry {
@@ -116,14 +128,26 @@ function install_foundry {
     curl -L https://foundry.paradigm.xyz | bash
     check_status $?
     
-    echo -e "${YELLOW}Melakukan source bash profile...${NC}"
+    echo -e "${YELLOW}Melakukan konfigurasi PATH...${NC}"
     
-    # Ekspor PATH untuk CLI yang baru diinstal
+    # Hapus entri yang sudah ada untuk mencegah duplikasi
+    sed -i '/export PATH.*\.foundry\/bin/d' $HOME/.bashrc
+    
+    # Tambahkan path ke .bashrc
     echo 'export PATH="$HOME/.foundry/bin:$PATH"' >> $HOME/.bashrc
+    
+    # Ekspor PATH untuk sesi saat ini
     export PATH="$HOME/.foundry/bin:$PATH"
     
+    # Jalankan installer lagi jika diperlukan
+    if [ -f "$HOME/.foundry/bin/foundryup" ]; then
+        echo -e "${YELLOW}Menjalankan foundryup untuk menginstal CLI...${NC}"
+        $HOME/.foundry/bin/foundryup
+    fi
+    
     echo -e "${GREEN}Foundry CLI berhasil diinstall!${NC}"
-    echo -e "${YELLOW}Catatan: Jalankan 'source /root/.bashrc' secara manual jika mengalami masalah dengan command foundry${NC}"
+    echo -e "${YELLOW}Cek instalasi: ${NC}which forge"
+    which forge || echo -e "${RED}forge tidak ditemukan dalam PATH${NC}"
 }
 
 function install_bun {
@@ -134,14 +158,20 @@ function install_bun {
     curl -fsSL https://bun.sh/install | bash
     check_status $?
     
-    echo -e "${YELLOW}Melakukan source bash profile...${NC}"
+    echo -e "${YELLOW}Melakukan konfigurasi PATH...${NC}"
     
-    # Ekspor PATH untuk CLI yang baru diinstal
+    # Hapus entri yang sudah ada untuk mencegah duplikasi
+    sed -i '/export PATH.*\.bun\/bin/d' $HOME/.bashrc
+    
+    # Tambahkan path ke .bashrc
     echo 'export PATH="$HOME/.bun/bin:$PATH"' >> $HOME/.bashrc
+    
+    # Ekspor PATH untuk sesi saat ini
     export PATH="$HOME/.bun/bin:$PATH"
     
     echo -e "${GREEN}Bun berhasil diinstall!${NC}"
-    echo -e "${YELLOW}Catatan: Jalankan 'source /root/.bashrc' secara manual jika mengalami masalah dengan command bun${NC}"
+    echo -e "${YELLOW}Cek instalasi: ${NC}which bun"
+    which bun || echo -e "${RED}bun tidak ditemukan dalam PATH${NC}"
 }
 
 function update_drosera_cli {
@@ -170,6 +200,116 @@ function update_foundry_cli {
     else
         echo -e "${RED}foundryup tidak ditemukan. Pastikan Foundry CLI sudah terinstal dengan benar.${NC}"
     fi
+}
+
+function reload_bashrc {
+    line
+    echo -e "${YELLOW}Membersihkan dan memuat ulang bash profile...${NC}"
+    line
+    
+    # Bersihkan duplikasi PATH
+    echo -e "${YELLOW}Membersihkan duplikasi PATH...${NC}"
+    
+    # Backup .bashrc original
+    cp $HOME/.bashrc $HOME/.bashrc.backup
+    
+    # Hapus duplikasi path
+    sed -i '/export PATH.*\.drosera\/bin/d' $HOME/.bashrc
+    sed -i '/export PATH.*\.foundry\/bin/d' $HOME/.bashrc
+    sed -i '/export PATH.*\.bun\/bin/d' $HOME/.bashrc
+    
+    # Tambahkan path sekali saja
+    echo 'export PATH="$HOME/.drosera/bin:$PATH"' >> $HOME/.bashrc
+    echo 'export PATH="$HOME/.foundry/bin:$PATH"' >> $HOME/.bashrc
+    echo 'export PATH="$HOME/.bun/bin:$PATH"' >> $HOME/.bashrc
+    
+    # Source .bashrc
+    source $HOME/.bashrc
+    
+    # Ekspor PATH secara manual untuk sesi saat ini
+    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
+    
+    echo -e "${GREEN}Bash profile telah dibersihkan dan dimuat ulang.${NC}"
+    echo -e "${YELLOW}PATH saat ini: ${NC}$PATH"
+    
+    # Verifikasi CLI
+    echo -e "${YELLOW}Memverifikasi CLI...${NC}"
+    
+    # Cek apakah CLI tersedia dengan path absolut
+    if [ -f "$HOME/.drosera/bin/drosera" ]; then
+        echo -e "${GREEN}Drosera CLI file ada di $HOME/.drosera/bin/drosera${NC}"
+        $HOME/.drosera/bin/drosera --version || echo -e "${RED}Drosera CLI gagal dieksekusi${NC}"
+    else
+        echo -e "${RED}File Drosera CLI tidak ditemukan di $HOME/.drosera/bin/${NC}"
+        # Coba install ulang jika tidak ada
+        echo -e "${YELLOW}Mencoba install ulang Drosera CLI...${NC}"
+        curl -L https://app.drosera.io/install | bash
+        # Jalankan droseraup jika ada
+        if [ -f "$HOME/.drosera/bin/droseraup" ]; then
+            $HOME/.drosera/bin/droseraup
+        fi
+    fi
+    
+    if [ -f "$HOME/.foundry/bin/forge" ]; then
+        echo -e "${GREEN}Foundry CLI file ada di $HOME/.foundry/bin/forge${NC}"
+        $HOME/.foundry/bin/forge --version || echo -e "${RED}Foundry CLI gagal dieksekusi${NC}"
+    else
+        echo -e "${RED}File Foundry CLI tidak ditemukan di $HOME/.foundry/bin/${NC}"
+        # Coba install ulang jika tidak ada
+        echo -e "${YELLOW}Mencoba install ulang Foundry CLI...${NC}"
+        curl -L https://foundry.paradigm.xyz | bash
+        # Jalankan foundryup jika ada
+        if [ -f "$HOME/.foundry/bin/foundryup" ]; then
+            $HOME/.foundry/bin/foundryup
+        fi
+    fi
+    
+    if [ -f "$HOME/.bun/bin/bun" ]; then
+        echo -e "${GREEN}Bun file ada di $HOME/.bun/bin/bun${NC}"
+        $HOME/.bun/bin/bun --version || echo -e "${RED}Bun gagal dieksekusi${NC}"
+    else
+        echo -e "${RED}File Bun tidak ditemukan di $HOME/.bun/bin/${NC}"
+        # Coba install ulang jika tidak ada
+        echo -e "${YELLOW}Mencoba install ulang Bun...${NC}"
+        curl -fsSL https://bun.sh/install | bash
+    fi
+    
+    # Cek ketersediaan command dalam PATH
+    echo -e "${YELLOW}Memeriksa ketersediaan command dalam PATH...${NC}"
+    which drosera && echo -e "${GREEN}Drosera CLI tersedia dalam PATH.${NC}" || echo -e "${RED}Drosera CLI tidak tersedia dalam PATH.${NC}"
+    which forge && echo -e "${GREEN}Foundry CLI tersedia dalam PATH.${NC}" || echo -e "${RED}Foundry CLI tidak tersedia dalam PATH.${NC}"
+    which bun && echo -e "${GREEN}Bun tersedia dalam PATH.${NC}" || echo -e "${RED}Bun tidak tersedia dalam PATH.${NC}"
+}
+
+function create_symlinks {
+    line
+    echo -e "${YELLOW}Membuat symlinks untuk CLI...${NC}"
+    line
+    
+    # Buat symlinks ke /usr/local/bin jika file ada tapi tidak dalam PATH
+    if [ -f "$HOME/.drosera/bin/drosera" ] && ! command -v drosera &> /dev/null; then
+        echo -e "${YELLOW}Membuat symlink untuk drosera ke /usr/local/bin/${NC}"
+        sudo ln -sf $HOME/.drosera/bin/drosera /usr/local/bin/drosera
+        sudo ln -sf $HOME/.drosera/bin/droseraup /usr/local/bin/droseraup
+    fi
+    
+    if [ -f "$HOME/.foundry/bin/forge" ] && ! command -v forge &> /dev/null; then
+        echo -e "${YELLOW}Membuat symlink untuk forge ke /usr/local/bin/${NC}"
+        sudo ln -sf $HOME/.foundry/bin/forge /usr/local/bin/forge
+        sudo ln -sf $HOME/.foundry/bin/foundryup /usr/local/bin/foundryup
+        sudo ln -sf $HOME/.foundry/bin/cast /usr/local/bin/cast
+        sudo ln -sf $HOME/.foundry/bin/anvil /usr/local/bin/anvil
+    fi
+    
+    if [ -f "$HOME/.bun/bin/bun" ] && ! command -v bun &> /dev/null; then
+        echo -e "${YELLOW}Membuat symlink untuk bun ke /usr/local/bin/${NC}"
+        sudo ln -sf $HOME/.bun/bin/bun /usr/local/bin/bun
+    fi
+    
+    echo -e "${GREEN}Symlinks dibuat. Memeriksa ketersediaan command...${NC}"
+    which drosera && echo -e "${GREEN}Drosera CLI tersedia.${NC}" || echo -e "${RED}Drosera CLI masih tidak tersedia.${NC}"
+    which forge && echo -e "${GREEN}Foundry CLI tersedia.${NC}" || echo -e "${RED}Foundry CLI masih tidak tersedia.${NC}"
+    which bun && echo -e "${GREEN}Bun tersedia.${NC}" || echo -e "${RED}Bun masih tidak tersedia.${NC}"
 }
 
 function setup_trap {
@@ -523,39 +663,6 @@ function setup_trap_environment {
     fi
 }
 
-function reload_bashrc {
-    line
-    echo -e "${YELLOW}Memuat ulang bash profile...${NC}"
-    line
-    
-    source /root/.bashrc
-    
-    # Ekspor PATH lagi untuk memastikan
-    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
-    
-    echo -e "${GREEN}Bash profile telah dimuat ulang. PATH sudah diperbarui.${NC}"
-    echo -e "${YELLOW}PATH saat ini: ${NC}$PATH"
-    
-    # Cek ketersediaan command
-    if command -v drosera &> /dev/null; then
-        echo -e "${GREEN}Drosera CLI tersedia.${NC}"
-    else
-        echo -e "${RED}Drosera CLI tidak tersedia dalam PATH.${NC}"
-    fi
-    
-    if command -v forge &> /dev/null; then
-        echo -e "${GREEN}Foundry CLI tersedia.${NC}"
-    else
-        echo -e "${RED}Foundry CLI tidak tersedia dalam PATH.${NC}"
-    fi
-    
-    if command -v bun &> /dev/null; then
-        echo -e "${GREEN}Bun tersedia.${NC}"
-    else
-        echo -e "${RED}Bun tidak tersedia dalam PATH.${NC}"
-    fi
-}
-
 function show_menu {
     clear
     curl -s https://raw.githubusercontent.com/dlzvy/LOGOTES/main/logo3.sh | bash
@@ -568,17 +675,18 @@ function show_menu {
     echo -e "${GREEN}3.${NC} Konfigurasi RPC URL"
     echo -e "${GREEN}4.${NC} Setup Trap Environment (Drosera, Foundry, Bun CLI)"
     echo -e "${GREEN}5.${NC} Reload Bash Profile"
-    echo -e "${GREEN}6.${NC} Setup and Deploy Trap"
-    echo -e "${GREEN}7.${NC} Configure Whitelist Operator"
-    echo -e "${GREEN}8.${NC} Install Operator CLI"
-    echo -e "${GREEN}9.${NC} Register Operator"
-    echo -e "${GREEN}10.${NC} Open Required Ports"
-    echo -e "${GREEN}11.${NC} Install Operator (Docker)"
-    echo -e "${GREEN}12.${NC} Install Operator (SystemD)"
-    echo -e "${GREEN}13.${NC} Send Bloom & Run Dryrun"
-    echo -e "${GREEN}14.${NC} Opt-in Trap in Dashboard"
-    echo -e "${GREEN}15.${NC} Check Node Status"
-    echo -e "${GREEN}16.${NC} Full Installation (Steps 1-14)"
+    echo -e "${GREEN}6.${NC} Buat Symlinks untuk CLI (Jika tidak terdeteksi)"
+    echo -e "${GREEN}7.${NC} Setup and Deploy Trap"
+    echo -e "${GREEN}8.${NC} Configure Whitelist Operator"
+    echo -e "${GREEN}9.${NC} Install Operator CLI"
+    echo -e "${GREEN}10.${NC} Register Operator"
+    echo -e "${GREEN}11.${NC} Open Required Ports"
+    echo -e "${GREEN}12.${NC} Install Operator (Docker)"
+    echo -e "${GREEN}13.${NC} Install Operator (SystemD)"
+    echo -e "${GREEN}14.${NC} Send Bloom & Run Dryrun"
+    echo -e "${GREEN}15.${NC} Opt-in Trap in Dashboard"
+    echo -e "${GREEN}16.${NC} Check Node Status"
+    echo -e "${GREEN}17.${NC} Full Installation (Steps 1-15)"
     echo -e "${GREEN}0.${NC} Exit"
     line
     
@@ -590,29 +698,29 @@ function show_menu {
         3) configure_rpc ;;
         4) setup_trap_environment ;;
         5) reload_bashrc ;;
-        6) 
+        6) create_symlinks ;;
+        7) 
             # Ekspor PATH untuk CLI yang baru diinstal
             export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
             setup_trap
             deploy_trap
             ;;
-        7) config_whitelist_operator ;;
-        8) install_operator_cli ;;
-        9) register_operator ;;
-        10) open_ports ;;
-        11) install_docker_operator ;;
-        12) install_systemd_operator ;;
-        13) send_bloom ;;
-        14) opt_in_trap ;;
-        15) check_node_status ;;
-        16)
+        8) config_whitelist_operator ;;
+        9) install_operator_cli ;;
+        10) register_operator ;;
+        11) open_ports ;;
+        12) install_docker_operator ;;
+        13) install_systemd_operator ;;
+        14) send_bloom ;;
+        15) opt_in_trap ;;
+        16) check_node_status ;;
+        17)
             install_dependencies
             install_docker
             configure_rpc
             setup_trap_environment
-            
-            # Perlu reload bash profile untuk memuat perubahan PATH
             reload_bashrc
+            create_symlinks
             
             setup_trap
             deploy_trap

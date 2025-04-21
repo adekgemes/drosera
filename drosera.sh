@@ -101,6 +101,7 @@ function install_drosera_cli {
     echo -e "${YELLOW}Melakukan source bash profile...${NC}"
     
     # Ekspor PATH untuk CLI yang baru diinstal
+    echo 'export PATH="$HOME/.drosera/bin:$PATH"' >> $HOME/.bashrc
     export PATH="$HOME/.drosera/bin:$PATH"
     
     echo -e "${GREEN}Drosera CLI berhasil diinstall!${NC}"
@@ -118,6 +119,7 @@ function install_foundry {
     echo -e "${YELLOW}Melakukan source bash profile...${NC}"
     
     # Ekspor PATH untuk CLI yang baru diinstal
+    echo 'export PATH="$HOME/.foundry/bin:$PATH"' >> $HOME/.bashrc
     export PATH="$HOME/.foundry/bin:$PATH"
     
     echo -e "${GREEN}Foundry CLI berhasil diinstall!${NC}"
@@ -135,6 +137,7 @@ function install_bun {
     echo -e "${YELLOW}Melakukan source bash profile...${NC}"
     
     # Ekspor PATH untuk CLI yang baru diinstal
+    echo 'export PATH="$HOME/.bun/bin:$PATH"' >> $HOME/.bashrc
     export PATH="$HOME/.bun/bin:$PATH"
     
     echo -e "${GREEN}Bun berhasil diinstall!${NC}"
@@ -234,7 +237,11 @@ function deploy_trap {
     echo ""
     
     # Deploy trap
-    DROSERA_PRIVATE_KEY=$PRIVATE_KEY drosera apply
+    if [ -f "$HOME/.drosera/bin/drosera" ]; then
+        DROSERA_PRIVATE_KEY=$PRIVATE_KEY $HOME/.drosera/bin/drosera apply
+    else
+        DROSERA_PRIVATE_KEY=$PRIVATE_KEY drosera apply
+    fi
     
     echo -e "${GREEN}Trap berhasil dideploy! Pastikan Anda memeriksa dashboard Drosera.${NC}"
     echo -e "${GREEN}Kunjungi https://app.drosera.io/ untuk melihat trap Anda.${NC}"
@@ -264,7 +271,11 @@ function config_whitelist_operator {
     read -sp "Masukkan EVM wallet private key Anda: " PRIVATE_KEY
     echo ""
     
-    DROSERA_PRIVATE_KEY=$PRIVATE_KEY drosera apply
+    if [ -f "$HOME/.drosera/bin/drosera" ]; then
+        DROSERA_PRIVATE_KEY=$PRIVATE_KEY $HOME/.drosera/bin/drosera apply
+    else
+        DROSERA_PRIVATE_KEY=$PRIVATE_KEY drosera apply
+    fi
     
     echo -e "${GREEN}Whitelist Operator berhasil dikonfigurasi!${NC}"
 }
@@ -380,8 +391,12 @@ function install_systemd_operator {
     echo ""
     read -p "Masukkan IP publik VPS Anda (atau 0.0.0.0 untuk sistem lokal): " VPS_IP
     
-    # Buat file service
-    sudo tee /etc/systemd/system/drosera.service > /dev/null <<EOF
+    # Menyimpan private key ke file terpisah (Metode yang lebih aman)
+    echo "$PRIVATE_KEY" > $HOME/.drosera-private-key
+    sudo chmod 600 $HOME/.drosera-private-key
+    
+    # Buat file service menggunakan file private key
+    sudo bash -c "cat > /etc/systemd/system/drosera.service << EOF
 [Unit]
 Description=drosera node service
 After=network-online.target
@@ -391,25 +406,41 @@ User=$USER
 Restart=always
 RestartSec=15
 LimitNOFILE=65535
-ExecStart=$(which drosera-operator) node --db-file-path $HOME/.drosera.db --network-p2p-port 31313 --server-port 31314 \
-    --eth-rpc-url $ETH_RPC_URL \
-    --eth-backup-rpc-url $ETH_BACKUP_RPC_URL \
-    --drosera-address 0xea08f7d533C2b9A62F40D5326214f39a8E3A32F8 \
-    --eth-private-key $PRIVATE_KEY \
-    --listen-address 0.0.0.0 \
-    --network-external-p2p-address $VPS_IP \
+ExecStart=$(which drosera-operator) node --db-file-path $HOME/.drosera.db --network-p2p-port 31313 --server-port 31314 \\
+    --eth-rpc-url $ETH_RPC_URL \\
+    --eth-backup-rpc-url $ETH_BACKUP_RPC_URL \\
+    --drosera-address 0xea08f7d533C2b9A62F40D5326214f39a8E3A32F8 \\
+    --eth-private-key-file $HOME/.drosera-private-key \\
+    --listen-address 0.0.0.0 \\
+    --network-external-p2p-address $VPS_IP \\
     --disable-dnr-confirmation true
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF"
     
     # Reload systemd
     sudo systemctl daemon-reload
     sudo systemctl enable drosera
     
     # Start systemd
+    echo -e "${YELLOW}Memulai service drosera...${NC}"
     sudo systemctl start drosera
+    
+    # Cek status service
+    sleep 3
+    if systemctl is-active --quiet drosera; then
+        echo -e "${GREEN}Service drosera berhasil dijalankan!${NC}"
+    else
+        echo -e "${RED}Service drosera gagal dijalankan. Memeriksa log...${NC}"
+        journalctl -u drosera.service --no-pager --lines=10
+        
+        echo -e "${YELLOW}Jika service gagal dijalankan, coba perbarui file service dengan cara alternatif berikut:${NC}"
+        echo -e "${BLUE}1. sudo nano /etc/systemd/system/drosera.service${NC}"
+        echo -e "${BLUE}2. Edit parameter private key dengan format yang benar${NC}"
+        echo -e "${BLUE}3. sudo systemctl daemon-reload${NC}"
+        echo -e "${BLUE}4. sudo systemctl restart drosera${NC}"
+    fi
     
     echo -e "${GREEN}Operator berhasil diinstall dengan SystemD!${NC}"
     echo -e "${YELLOW}Untuk melihat logs: ${NC}journalctl -u drosera.service -f"
@@ -492,6 +523,39 @@ function setup_trap_environment {
     fi
 }
 
+function reload_bashrc {
+    line
+    echo -e "${YELLOW}Memuat ulang bash profile...${NC}"
+    line
+    
+    source /root/.bashrc
+    
+    # Ekspor PATH lagi untuk memastikan
+    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
+    
+    echo -e "${GREEN}Bash profile telah dimuat ulang. PATH sudah diperbarui.${NC}"
+    echo -e "${YELLOW}PATH saat ini: ${NC}$PATH"
+    
+    # Cek ketersediaan command
+    if command -v drosera &> /dev/null; then
+        echo -e "${GREEN}Drosera CLI tersedia.${NC}"
+    else
+        echo -e "${RED}Drosera CLI tidak tersedia dalam PATH.${NC}"
+    fi
+    
+    if command -v forge &> /dev/null; then
+        echo -e "${GREEN}Foundry CLI tersedia.${NC}"
+    else
+        echo -e "${RED}Foundry CLI tidak tersedia dalam PATH.${NC}"
+    fi
+    
+    if command -v bun &> /dev/null; then
+        echo -e "${GREEN}Bun tersedia.${NC}"
+    else
+        echo -e "${RED}Bun tidak tersedia dalam PATH.${NC}"
+    fi
+}
+
 function show_menu {
     clear
     curl -s https://raw.githubusercontent.com/dlzvy/LOGOTES/main/logo3.sh | bash
@@ -503,18 +567,18 @@ function show_menu {
     echo -e "${GREEN}2.${NC} Install Docker"
     echo -e "${GREEN}3.${NC} Konfigurasi RPC URL"
     echo -e "${GREEN}4.${NC} Setup Trap Environment (Drosera, Foundry, Bun CLI)"
-    echo -e "${GREEN}5.${NC} Setup and Deploy Trap"
-    echo -e "${GREEN}6.${NC} Configure Whitelist Operator"
-    echo -e "${GREEN}7.${NC} Install Operator CLI"
-    echo -e "${GREEN}8.${NC} Register Operator"
-    echo -e "${GREEN}9.${NC} Open Required Ports"
-    echo -e "${GREEN}10.${NC} Install Operator (Docker)"
-    echo -e "${GREEN}11.${NC} Install Operator (SystemD)"
-    echo -e "${GREEN}12.${NC} Send Bloom & Run Dryrun"
-    echo -e "${GREEN}13.${NC} Opt-in Trap in Dashboard"
-    echo -e "${GREEN}14.${NC} Check Node Status"
-    echo -e "${GREEN}15.${NC} Source /root/.bashrc (Perbarui PATH)"
-    echo -e "${GREEN}16.${NC} Full Installation (Steps 1-13)"
+    echo -e "${GREEN}5.${NC} Reload Bash Profile"
+    echo -e "${GREEN}6.${NC} Setup and Deploy Trap"
+    echo -e "${GREEN}7.${NC} Configure Whitelist Operator"
+    echo -e "${GREEN}8.${NC} Install Operator CLI"
+    echo -e "${GREEN}9.${NC} Register Operator"
+    echo -e "${GREEN}10.${NC} Open Required Ports"
+    echo -e "${GREEN}11.${NC} Install Operator (Docker)"
+    echo -e "${GREEN}12.${NC} Install Operator (SystemD)"
+    echo -e "${GREEN}13.${NC} Send Bloom & Run Dryrun"
+    echo -e "${GREEN}14.${NC} Opt-in Trap in Dashboard"
+    echo -e "${GREEN}15.${NC} Check Node Status"
+    echo -e "${GREEN}16.${NC} Full Installation (Steps 1-14)"
     echo -e "${GREEN}0.${NC} Exit"
     line
     
@@ -525,37 +589,30 @@ function show_menu {
         2) install_docker ;;
         3) configure_rpc ;;
         4) setup_trap_environment ;;
-        5) 
+        5) reload_bashrc ;;
+        6) 
             # Ekspor PATH untuk CLI yang baru diinstal
             export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
             setup_trap
             deploy_trap
             ;;
-        6) config_whitelist_operator ;;
-        7) install_operator_cli ;;
-        8) register_operator ;;
-        9) open_ports ;;
-        10) install_docker_operator ;;
-        11) install_systemd_operator ;;
-        12) send_bloom ;;
-        13) opt_in_trap ;;
-        14) check_node_status ;;
-        15) 
-            source /root/.bashrc
-            echo -e "${GREEN}Bash profile telah di-source. PATH sudah diperbarui.${NC}"
-            ;;
+        7) config_whitelist_operator ;;
+        8) install_operator_cli ;;
+        9) register_operator ;;
+        10) open_ports ;;
+        11) install_docker_operator ;;
+        12) install_systemd_operator ;;
+        13) send_bloom ;;
+        14) opt_in_trap ;;
+        15) check_node_status ;;
         16)
             install_dependencies
             install_docker
             configure_rpc
             setup_trap_environment
             
-            # Perlu restart shell atau source .bashrc untuk memuat perubahan PATH
-            echo -e "${YELLOW}Memuat perubahan PATH...${NC}"
-            source /root/.bashrc
-            
-            # Ekspor PATH untuk CLI yang baru diinstal
-            export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
+            # Perlu reload bash profile untuk memuat perubahan PATH
+            reload_bashrc
             
             setup_trap
             deploy_trap

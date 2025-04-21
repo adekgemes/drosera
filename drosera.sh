@@ -66,20 +66,48 @@ echo -e "\e[1;36m=== Installation Process Starting ===\e[0m"
 echo "This may take several minutes. Please be patient."
 echo ""
 
-# Step 1: Install Dependencies
-echo -e "\e[1;33m[Step 1/7] Installing system dependencies...\e[0m"
+# Step 1: Install Comprehensive Dependencies
+echo -e "\e[1;33m[Step 1/8] Installing system dependencies...\e[0m"
 sudo apt-get update && sudo apt-get upgrade -y
-sudo apt install curl ufw iptables build-essential git wget jq make gcc nano tmux htop pkg-config libssl-dev tar unzip -y
+sudo apt install curl ufw iptables build-essential git wget lz4 jq make gcc nano automake autoconf \
+    tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils \
+    ncdu unzip libleveldb-dev ca-certificates gnupg -y
 
-# Step 2: Install Drosera CLI
-echo -e "\n\e[1;33m[Step 2/7] Installing Drosera CLI...\e[0m"
+# Step 2: Install Docker
+echo -e "\n\e[1;33m[Step 2/8] Installing Docker...\e[0m"
+# Remove existing docker packages
+for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do 
+    sudo apt-get remove $pkg; 
+done
+
+# Add Docker's official GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Set up the repository
+echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update -y && sudo apt upgrade -y
+
+# Install Docker packages
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
+# Test Docker installation
+sudo docker run hello-world
+
+# Step 3: Install Drosera CLI
+echo -e "\n\e[1;33m[Step 3/8] Installing Drosera CLI...\e[0m"
 curl -L https://app.drosera.io/install | bash
 source $HOME/.bashrc
 export PATH=$PATH:$HOME/.drosera/bin
 droseraup || echo "It's normal if droseraup shows a usage message."
 
-# Step 3: Install Foundry CLI and Bun
-echo -e "\n\e[1;33m[Step 3/7] Installing Foundry CLI and Bun...\e[0m"
+# Step 4: Install Foundry CLI and Bun
+echo -e "\n\e[1;33m[Step 4/8] Installing Foundry CLI and Bun...\e[0m"
 curl -L https://foundry.paradigm.xyz | bash
 source $HOME/.bashrc
 export PATH=$PATH:$HOME/.foundry/bin
@@ -89,28 +117,28 @@ curl -fsSL https://bun.sh/install | bash
 source $HOME/.bashrc
 export PATH=$PATH:$HOME/.bun/bin
 
-# Step 4: Install Operator CLI
-echo -e "\n\e[1;33m[Step 4/7] Installing Operator CLI...\e[0m"
+# Step 5: Install Operator CLI
+echo -e "\n\e[1;33m[Step 5/8] Installing Operator CLI...\e[0m"
 cd $HOME
 curl -LO https://github.com/drosera-network/releases/releases/download/v1.16.2/drosera-operator-v1.16.2-x86_64-unknown-linux-gnu.tar.gz
 tar -xvf drosera-operator-v1.16.2-x86_64-unknown-linux-gnu.tar.gz
 sudo cp drosera-operator /usr/bin
 drosera-operator --version
 
-# Step 5: Configure Firewall
-echo -e "\n\e[1;33m[Step 5/7] Configuring firewall...\e[0m"
+# Step 6: Configure Firewall
+echo -e "\n\e[1;33m[Step 6/8] Configuring firewall...\e[0m"
 sudo ufw allow ssh
 sudo ufw allow 22
 sudo ufw allow 31313/tcp
 sudo ufw allow 31314/tcp
 sudo ufw --force enable
 
-# Step 6: Register Operator
-echo -e "\n\e[1;33m[Step 6/7] Registering operator with the network...\e[0m"
+# Step 7: Register Operator
+echo -e "\n\e[1;33m[Step 7/8] Registering operator with the network...\e[0m"
 drosera-operator register --eth-rpc-url "$ETH_RPC_URL" --eth-private-key "$EVM_PRIVATE_KEY"
 
-# Step 7: Configure and Start SystemD Service
-echo -e "\n\e[1;33m[Step 7/7] Setting up SystemD service...\e[0m"
+# Step 8: Configure and Start SystemD Service
+echo -e "\n\e[1;33m[Step 8/8] Setting up SystemD service...\e[0m"
 sudo tee /etc/systemd/system/drosera.service > /dev/null <<EOF
 [Unit]
 Description=drosera node service

@@ -14,11 +14,6 @@ sleep 5
 echo -e "\e[0m"
 echo ""
 
-# Display contact information
-echo -e "\e[1;32mJoin telegram  : https://t.me/scavengerairdrop\e[0m"
-echo -e "\e[1;32mFollow me on Github: https://github.com/dlzvy\e[0m"
-echo ""
-
 # Prompt for EVM private key
 read -p "Enter your EVM private key (Make sure it's funded with Testnet Holesky ETH): " EVM_PRIVATE_KEY
 if [ -z "$EVM_PRIVATE_KEY" ]; then

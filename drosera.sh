@@ -12,6 +12,10 @@ clear
 curl -s https://raw.githubusercontent.com/dlzvy/LOGOTES/main/logo3.sh | bash
 sleep 5
 
+# Variabel global untuk RPC URL
+ETH_RPC_URL="https://ethereum-holesky-rpc.publicnode.com"
+ETH_BACKUP_RPC_URL="https://1rpc.io/holesky"
+
 function line {
   echo -e "${GREEN}--------------------------------------------------------------------------------${NC}"
 }
@@ -23,6 +27,26 @@ function check_status() {
         echo -e "${RED}Gagal!${NC}"
         exit 1
     fi
+}
+
+function configure_rpc {
+    line
+    echo -e "${YELLOW}Konfigurasi RPC URL...${NC}"
+    line
+    
+    read -p "Masukkan Ethereum RPC URL [default: $ETH_RPC_URL]: " input_rpc
+    if [ -n "$input_rpc" ]; then
+        ETH_RPC_URL=$input_rpc
+    fi
+    
+    read -p "Masukkan Backup Ethereum RPC URL [default: $ETH_BACKUP_RPC_URL]: " input_backup_rpc
+    if [ -n "$input_backup_rpc" ]; then
+        ETH_BACKUP_RPC_URL=$input_backup_rpc
+    fi
+    
+    echo -e "${GREEN}RPC URL dikonfigurasi:${NC}"
+    echo -e "Primary: ${BLUE}$ETH_RPC_URL${NC}"
+    echo -e "Backup: ${BLUE}$ETH_BACKUP_RPC_URL${NC}"
 }
 
 function install_dependencies {
@@ -112,6 +136,9 @@ function setup_trap {
     echo -e "${YELLOW}Menyiapkan Trap...${NC}"
     line
     
+    # Sourceing bash profile terlebih dahulu
+    source /root/.bashrc
+    
     # Membuat direktori untuk trap
     mkdir -p $HOME/my-drosera-trap
     cd $HOME/my-drosera-trap
@@ -139,6 +166,9 @@ function deploy_trap {
     echo -e "${YELLOW}Mendeploy Trap...${NC}"
     line
     
+    # Sourceing bash profile terlebih dahulu
+    source /root/.bashrc
+    
     cd $HOME/my-drosera-trap
     
     # Masukkan private key
@@ -156,6 +186,9 @@ function config_whitelist_operator {
     line
     echo -e "${YELLOW}Mengkonfigurasi Whitelist Operator...${NC}"
     line
+    
+    # Sourceing bash profile terlebih dahulu
+    source /root/.bashrc
     
     cd $HOME/my-drosera-trap
     
@@ -179,6 +212,9 @@ function install_operator_cli {
     line
     echo -e "${YELLOW}Menginstall Operator CLI...${NC}"
     line
+    
+    # Sourceing bash profile terlebih dahulu
+    source /root/.bashrc
     
     cd $HOME
     
@@ -206,11 +242,14 @@ function register_operator {
     echo -e "${YELLOW}Mendaftarkan Operator...${NC}"
     line
     
+    # Sourceing bash profile terlebih dahulu
+    source /root/.bashrc
+    
     # Masukkan private key
     read -sp "Masukkan EVM wallet private key Anda: " PRIVATE_KEY
     echo ""
     
-    drosera-operator register --eth-rpc-url https://ethereum-holesky-rpc.publicnode.com --eth-private-key $PRIVATE_KEY
+    drosera-operator register --eth-rpc-url $ETH_RPC_URL --eth-private-key $PRIVATE_KEY
     
     echo -e "${GREEN}Operator berhasil didaftarkan!${NC}"
 }
@@ -237,6 +276,9 @@ function install_docker_operator {
     echo -e "${YELLOW}Menginstall Operator dengan Docker...${NC}"
     line
     
+    # Sourceing bash profile terlebih dahulu
+    source /root/.bashrc
+    
     # Stop dan disable systemd jika berjalan
     sudo systemctl stop drosera 2>/dev/null
     sudo systemctl disable drosera 2>/dev/null
@@ -251,7 +293,9 @@ function install_docker_operator {
     echo ""
     read -p "Masukkan IP publik VPS Anda: " VPS_IP
     
-    # Edit .env file
+    # Edit .env file untuk menggunakan RPC kustom
+    sed -i "s|ETH_RPC_URL=.*|ETH_RPC_URL=$ETH_RPC_URL|g" .env
+    sed -i "s|ETH_BACKUP_RPC_URL=.*|ETH_BACKUP_RPC_URL=$ETH_BACKUP_RPC_URL|g" .env
     sed -i "s/your_evm_private_key/$PRIVATE_KEY/g" .env
     sed -i "s/your_vps_public_ip/$VPS_IP/g" .env
     
@@ -266,6 +310,9 @@ function install_systemd_operator {
     line
     echo -e "${YELLOW}Menginstall Operator dengan SystemD...${NC}"
     line
+    
+    # Sourceing bash profile terlebih dahulu
+    source /root/.bashrc
     
     # Masukkan konfigurasi
     read -sp "Masukkan EVM wallet private key Anda: " PRIVATE_KEY
@@ -284,8 +331,8 @@ Restart=always
 RestartSec=15
 LimitNOFILE=65535
 ExecStart=$(which drosera-operator) node --db-file-path $HOME/.drosera.db --network-p2p-port 31313 --server-port 31314 \
-    --eth-rpc-url https://ethereum-holesky-rpc.publicnode.com \
-    --eth-backup-rpc-url https://1rpc.io/holesky \
+    --eth-rpc-url $ETH_RPC_URL \
+    --eth-backup-rpc-url $ETH_BACKUP_RPC_URL \
     --drosera-address 0xea08f7d533C2b9A62F40D5326214f39a8E3A32F8 \
     --eth-private-key $PRIVATE_KEY \
     --listen-address 0.0.0.0 \
@@ -311,6 +358,9 @@ function send_bloom {
     line
     echo -e "${YELLOW}Mengirim Bloom...${NC}"
     line
+    
+    # Sourceing bash profile terlebih dahulu
+    source /root/.bashrc
     
     echo -e "${GREEN}Untuk mengirim bloom boost, silakan mengunjungi dashboard Drosera:${NC}"
     echo -e "${BLUE}https://app.drosera.io/${NC}"
@@ -360,18 +410,19 @@ function show_menu {
     line
     echo -e "${GREEN}1.${NC} Install Dependencies"
     echo -e "${GREEN}2.${NC} Install Docker"
-    echo -e "${GREEN}3.${NC} Setup Trap Environment (Drosera, Foundry, Bun CLI)"
-    echo -e "${GREEN}4.${NC} Setup and Deploy Trap"
-    echo -e "${GREEN}5.${NC} Configure Whitelist Operator"
-    echo -e "${GREEN}6.${NC} Install Operator CLI"
-    echo -e "${GREEN}7.${NC} Register Operator"
-    echo -e "${GREEN}8.${NC} Open Required Ports"
-    echo -e "${GREEN}9.${NC} Install Operator (Docker)"
-    echo -e "${GREEN}10.${NC} Install Operator (SystemD)"
-    echo -e "${GREEN}11.${NC} Send Bloom & Run Dryrun"
-    echo -e "${GREEN}12.${NC} Opt-in Trap in Dashboard"
-    echo -e "${GREEN}13.${NC} Check Node Status"
-    echo -e "${GREEN}14.${NC} Full Installation (Steps 1-12)"
+    echo -e "${GREEN}3.${NC} Konfigurasi RPC URL"
+    echo -e "${GREEN}4.${NC} Setup Trap Environment (Drosera, Foundry, Bun CLI)"
+    echo -e "${GREEN}5.${NC} Setup and Deploy Trap"
+    echo -e "${GREEN}6.${NC} Configure Whitelist Operator"
+    echo -e "${GREEN}7.${NC} Install Operator CLI"
+    echo -e "${GREEN}8.${NC} Register Operator"
+    echo -e "${GREEN}9.${NC} Open Required Ports"
+    echo -e "${GREEN}10.${NC} Install Operator (Docker)"
+    echo -e "${GREEN}11.${NC} Install Operator (SystemD)"
+    echo -e "${GREEN}12.${NC} Send Bloom & Run Dryrun"
+    echo -e "${GREEN}13.${NC} Opt-in Trap in Dashboard"
+    echo -e "${GREEN}14.${NC} Check Node Status"
+    echo -e "${GREEN}15.${NC} Full Installation (Steps 1-13)"
     echo -e "${GREEN}0.${NC} Exit"
     line
     
@@ -380,27 +431,32 @@ function show_menu {
     case $choice in
         1) install_dependencies ;;
         2) install_docker ;;
-        3) 
+        3) configure_rpc ;;
+        4) 
+            source /root/.bashrc
             install_drosera_cli
             install_foundry
             install_bun
             ;;
-        4) 
+        5) 
+            source /root/.bashrc
             setup_trap
             deploy_trap
             ;;
-        5) config_whitelist_operator ;;
-        6) install_operator_cli ;;
-        7) register_operator ;;
-        8) open_ports ;;
-        9) install_docker_operator ;;
-        10) install_systemd_operator ;;
-        11) send_bloom ;;
-        12) opt_in_trap ;;
-        13) check_node_status ;;
-        14)
+        6) config_whitelist_operator ;;
+        7) install_operator_cli ;;
+        8) register_operator ;;
+        9) open_ports ;;
+        10) install_docker_operator ;;
+        11) install_systemd_operator ;;
+        12) send_bloom ;;
+        13) opt_in_trap ;;
+        14) check_node_status ;;
+        15)
             install_dependencies
             install_docker
+            configure_rpc
+            source /root/.bashrc
             install_drosera_cli
             install_foundry
             install_bun

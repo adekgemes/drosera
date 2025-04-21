@@ -1,83 +1,89 @@
 #!/bin/bash
 
-# Display ASCII Art Intro
-echo -e "\e[1;32m"
-curl -s https://raw.githubusercontent.com/dlzvy/LOGOTES/main/logo3.sh | bash
-sleep 3
-echo -e "\e[0m"
-echo ""
+# Color codes for formatting
+GREEN="\e[1;32m"
+YELLOW="\e[1;33m"
+BLUE="\e[1;36m"
+RESET="\e[0m"
 
-echo -e "\e[1;36m=========== Drosera Network One-Click Installer (SystemD Version) ===========\e[0m"
-echo -e "\e[1;33mThis script will install and configure a Drosera Network operator node.\e[0m"
-echo ""
+# Function to log error and exit
+error_exit() {
+    echo -e "${YELLOW}Error: $1${RESET}"
+    exit 1
+}
 
 # Function to derive public address from private key
 derive_address_from_private_key() {
     echo "0x$(echo $1 | sha256sum | head -c 40)"
 }
 
+# Function to validate Ethereum private key
+validate_private_key() {
+    local key=$1
+    if [[ ! $key =~ ^[0-9a-fA-F]{64}$ ]]; then
+        error_exit "Invalid Ethereum private key. Must be 64 hexadecimal characters."
+    fi
+}
+
+# Display ASCII Art Intro
+echo -e "${GREEN}"
+curl -s https://raw.githubusercontent.com/dlzvy/LOGOTES/main/logo3.sh | bash
+sleep 3
+echo -e "${RESET}"
+echo ""
+
+echo -e "${BLUE}=========== Drosera Network One-Click Installer (SystemD Version) ===========${RESET}"
+echo -e "${YELLOW}This script will install and configure a Drosera Network operator node.${RESET}"
+echo ""
+
 # Collect user information
-echo -e "\e[1;36m=== Required Information ===\e[0m"
+echo -e "${BLUE}=== Required Information ===${RESET}"
 read -p "Enter your EVM private key (Must be funded with Holesky ETH): " EVM_PRIVATE_KEY
-if [ -z "$EVM_PRIVATE_KEY" ]; then
-    echo "Error: EVM private key is required. Exiting."
-    exit 1
-fi
+validate_private_key "$EVM_PRIVATE_KEY"
 
 # Derive public address
 echo "Deriving your public address..."
 EVM_PUBLIC_ADDRESS=$(derive_address_from_private_key "$EVM_PRIVATE_KEY")
-echo -e "Public address derived: \e[1;33m$EVM_PUBLIC_ADDRESS\e[0m"
+echo -e "Public address derived: ${YELLOW}$EVM_PUBLIC_ADDRESS${RESET}"
 echo ""
 
 # Prompt for VPS public IP
 read -p "Enter your VPS public IP (or type 'local' to use 0.0.0.0): " VPS_IP_INPUT
 if [ -z "$VPS_IP_INPUT" ]; then
-    echo "Error: VPS public IP is required. Exiting."
-    exit 1
+    error_exit "VPS public IP is required."
 fi
 
 # Set VPS_IP based on input
-if [ "$VPS_IP_INPUT" = "local" ]; then
-    VPS_IP="0.0.0.0"
-else
-    VPS_IP="$VPS_IP_INPUT"
-fi
-echo -e "Using IP: \e[1;33m$VPS_IP\e[0m"
+VPS_IP=$([ "$VPS_IP_INPUT" = "local" ] && echo "0.0.0.0" || echo "$VPS_IP_INPUT")
+echo -e "Using IP: ${YELLOW}$VPS_IP${RESET}"
 
 # Prompt for Holesky Ethereum RPC URL
 read -p "Enter your Holesky Ethereum RPC URL (or press Enter to use default): " ETH_RPC_URL
-if [ -z "$ETH_RPC_URL" ]; then
-    ETH_RPC_URL="https://ethereum-holesky-rpc.publicnode.com"
-    echo -e "Using default RPC URL: \e[1;33m$ETH_RPC_URL\e[0m"
-else
-    echo -e "Using provided RPC URL: \e[1;33m$ETH_RPC_URL\e[0m"
-fi
+ETH_RPC_URL=${ETH_RPC_URL:-"https://ethereum-holesky-rpc.publicnode.com"}
+echo -e "Using RPC URL: ${YELLOW}$ETH_RPC_URL${RESET}"
 
 # Prompt for backup RPC URL
 read -p "Enter your backup Holesky Ethereum RPC URL (or press Enter to use default): " ETH_BACKUP_RPC_URL
-if [ -z "$ETH_BACKUP_RPC_URL" ]; then
-    ETH_BACKUP_RPC_URL="https://1rpc.io/holesky"
-    echo -e "Using default backup RPC URL: \e[1;33m$ETH_BACKUP_RPC_URL\e[0m"
-fi
+ETH_BACKUP_RPC_URL=${ETH_BACKUP_RPC_URL:-"https://1rpc.io/holesky"}
+echo -e "Using backup RPC URL: ${YELLOW}$ETH_BACKUP_RPC_URL${RESET}"
 
 echo ""
-echo -e "\e[1;36m=== Installation Process Starting ===\e[0m"
+echo -e "${BLUE}=== Installation Process Starting ===${RESET}"
 echo "This may take several minutes. Please be patient."
 echo ""
 
 # Step 1: Install Comprehensive Dependencies
-echo -e "\e[1;33m[Step 1/8] Installing system dependencies...\e[0m"
+echo -e "${YELLOW}[Step 1/9] Installing system dependencies...${RESET}"
 sudo apt-get update && sudo apt-get upgrade -y
-sudo apt install curl ufw iptables build-essential git wget lz4 jq make gcc nano automake autoconf \
-    tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils \
-    ncdu unzip libleveldb-dev ca-certificates gnupg -y
+sudo apt install -y curl ufw iptables build-essential git wget lz4 jq make gcc nano \
+    automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev \
+    libleveldb-dev tar clang bsdmainutils ncdu unzip ca-certificates gnupg
 
 # Step 2: Install Docker
-echo -e "\n\e[1;33m[Step 2/8] Installing Docker...\e[0m"
+echo -e "\n${YELLOW}[Step 2/9] Installing Docker...${RESET}"
 # Remove existing docker packages
 for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do 
-    sudo apt-get remove $pkg; 
+    sudo apt-get remove $pkg 2>/dev/null
 done
 
 # Add Docker's official GPG key
@@ -94,54 +100,77 @@ echo \
 sudo apt update -y && sudo apt upgrade -y
 
 # Install Docker packages
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Test Docker installation
 sudo docker run hello-world
 
-# Step 3: Install Drosera CLI
-echo -e "\n\e[1;33m[Step 3/8] Installing Drosera CLI...\e[0m"
+# Step 3: Trap Project Setup
+echo -e "\n${YELLOW}[Step 3/9] Setting Up Drosera Trap Project...${RESET}"
+mkdir -p "$HOME/my-drosera-trap"
+cd "$HOME/my-drosera-trap" || error_exit "Cannot create trap directory"
+
+# Initialize Trap Project
+forge init -t drosera-network/trap-foundry-template
+bun install
+forge build
+
+# Create Drosera Configuration
+cat > drosera.toml << EOL
+# Drosera Trap Configuration
+private_trap = false
+# Uncomment and add your operator address to whitelist
+# whitelist = ["$EVM_PUBLIC_ADDRESS"]
+EOL
+
+# Deploy Trap
+echo -e "\n${YELLOW}[Step 4/9] Deploying Trap...${RESET}"
+DROSERA_PRIVATE_KEY="$EVM_PRIVATE_KEY" drosera apply
+
+# Step 4: Install Drosera CLI
+echo -e "\n${YELLOW}[Step 5/9] Installing Drosera CLI...${RESET}"
 curl -L https://app.drosera.io/install | bash
-source $HOME/.bashrc
-export PATH=$PATH:$HOME/.drosera/bin
+source "$HOME/.bashrc"
+export PATH="$PATH:$HOME/.drosera/bin"
 droseraup || echo "It's normal if droseraup shows a usage message."
 
-# Step 4: Install Foundry CLI and Bun
-echo -e "\n\e[1;33m[Step 4/8] Installing Foundry CLI and Bun...\e[0m"
+# Step 5: Install Foundry CLI and Bun
+echo -e "\n${YELLOW}[Step 6/9] Installing Foundry CLI and Bun...${RESET}"
 curl -L https://foundry.paradigm.xyz | bash
-source $HOME/.bashrc
-export PATH=$PATH:$HOME/.foundry/bin
+source "$HOME/.bashrc"
+export PATH="$PATH:$HOME/.foundry/bin"
 foundryup || echo "It's normal if foundryup shows a usage message."
 
 curl -fsSL https://bun.sh/install | bash
-source $HOME/.bashrc
-export PATH=$PATH:$HOME/.bun/bin
+source "$HOME/.bashrc"
+export PATH="$PATH:$HOME/.bun/bin"
 
-# Step 5: Install Operator CLI
-echo -e "\n\e[1;33m[Step 5/8] Installing Operator CLI...\e[0m"
-cd $HOME
-curl -LO https://github.com/drosera-network/releases/releases/download/v1.16.2/drosera-operator-v1.16.2-x86_64-unknown-linux-gnu.tar.gz
-tar -xvf drosera-operator-v1.16.2-x86_64-unknown-linux-gnu.tar.gz
+# Step 6: Install Operator CLI
+echo -e "\n${YELLOW}[Step 7/9] Installing Operator CLI...${RESET}"
+cd "$HOME" || error_exit "Cannot change to home directory"
+OPERATOR_VERSION="v1.16.2"
+curl -LO "https://github.com/drosera-network/releases/releases/download/${OPERATOR_VERSION}/drosera-operator-${OPERATOR_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+tar -xvf "drosera-operator-${OPERATOR_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
 sudo cp drosera-operator /usr/bin
 drosera-operator --version
 
-# Step 6: Configure Firewall
-echo -e "\n\e[1;33m[Step 6/8] Configuring firewall...\e[0m"
+# Step 7: Configure Firewall
+echo -e "\n${YELLOW}[Step 8/9] Configuring firewall...${RESET}"
 sudo ufw allow ssh
 sudo ufw allow 22
 sudo ufw allow 31313/tcp
 sudo ufw allow 31314/tcp
 sudo ufw --force enable
 
-# Step 7: Register Operator
-echo -e "\n\e[1;33m[Step 7/8] Registering operator with the network...\e[0m"
+# Step 8: Register Operator
+echo -e "\n${YELLOW}[Step 9/9] Registering operator with the network...${RESET}"
 drosera-operator register --eth-rpc-url "$ETH_RPC_URL" --eth-private-key "$EVM_PRIVATE_KEY"
 
-# Step 8: Configure and Start SystemD Service
-echo -e "\n\e[1;33m[Step 8/8] Setting up SystemD service...\e[0m"
+# Step 9: Configure and Start SystemD Service
+echo -e "\n${YELLOW}Setting up SystemD service...${RESET}"
 sudo tee /etc/systemd/system/drosera.service > /dev/null <<EOF
 [Unit]
-Description=drosera node service
+Description=Drosera Node Service
 After=network-online.target
 
 [Service]
@@ -168,31 +197,31 @@ sudo systemctl enable drosera
 sudo systemctl start drosera
 
 echo ""
-echo -e "\e[1;32m=== Drosera Node Successfully Installed! ===\e[0m"
+echo -e "${GREEN}=== Drosera Node Successfully Installed! ===${RESET}"
 echo ""
-echo -e "\e[1;36mNode Information:\e[0m"
-echo -e "  - Operator Address: \e[1;33m$EVM_PUBLIC_ADDRESS\e[0m"
-echo -e "  - External IP: \e[1;33m$VPS_IP\e[0m"
-echo -e "  - Primary RPC: \e[1;33m$ETH_RPC_URL\e[0m"
-echo ""
-echo -e "\e[1;36mUseful Commands:\e[0m"
-echo -e "  - Check node logs: \e[1;33mjournalctl -u drosera.service -f\e[0m"
-echo -e "  - Stop node: \e[1;33msudo systemctl stop drosera\e[0m" 
-echo -e "  - Restart node: \e[1;33msudo systemctl restart drosera\e[0m"
-echo ""
-echo -e "\e[1;36mTo Change RPC URLs Later:\e[0m"
-echo -e "1. Edit the service file: \e[1;33msudo nano /etc/systemd/system/drosera.service\e[0m"
+echo -e "${BLUE}Node Information:${RESET}"
+echo -e "  - Operator Address: ${YELLOW}$EVM_PUBLIC_ADDRESS${RESET}"
+echo -e "  - External IP: ${YELLOW}$VPS_IP${RESET}"
+echo -e "  - Primary RPC: ${YELLOW}$ETH_RPC_URL${RESET}"
+
+echo -e "\n${BLUE}Useful Commands:${RESET}"
+echo -e "  - Check node logs: ${YELLOW}journalctl -u drosera.service -f${RESET}"
+echo -e "  - Stop node: ${YELLOW}sudo systemctl stop drosera${RESET}" 
+echo -e "  - Restart node: ${YELLOW}sudo systemctl restart drosera${RESET}"
+
+echo -e "\n${BLUE}To Change RPC URLs Later:${RESET}"
+echo -e "1. Edit the service file: ${YELLOW}sudo nano /etc/systemd/system/drosera.service${RESET}"
 echo -e "2. Modify the --eth-rpc-url and --eth-backup-rpc-url values"
 echo -e "3. Save the file (Ctrl+X, then Y, then Enter)"
-echo -e "4. Reload and restart: \e[1;33msudo systemctl daemon-reload && sudo systemctl restart drosera\e[0m"
-echo ""
-echo -e "\e[1;36mNext Steps:\e[0m"
-echo -e "1. Deploy a trap (if you haven't already) with: \e[1;33mDROSERA_PRIVATE_KEY=$EVM_PRIVATE_KEY drosera apply\e[0m"
-echo -e "2. Bloom boost your trap with: \e[1;33mdrosera bloomboost --trap-address YOUR_TRAP_ADDRESS --eth-amount AMOUNT_ETH\e[0m"
+echo -e "4. Reload and restart: ${YELLOW}sudo systemctl daemon-reload && sudo systemctl restart drosera${RESET}"
+
+echo -e "\n${BLUE}Next Steps:${RESET}"
+echo -e "1. Deploy a trap (if you haven't already) with: ${YELLOW}DROSERA_PRIVATE_KEY=$EVM_PRIVATE_KEY drosera apply${RESET}"
+echo -e "2. Bloom boost your trap with: ${YELLOW}drosera bloomboost --trap-address YOUR_TRAP_ADDRESS --eth-amount AMOUNT_ETH${RESET}"
 echo -e "   (Replace YOUR_TRAP_ADDRESS with your trap address and AMOUNT_ETH with the amount to deposit, e.g., 0.1)"
-echo -e "3. Opt-in to your trap with: \e[1;33mdrosera-operator optin --eth-rpc-url $ETH_RPC_URL --eth-private-key $EVM_PRIVATE_KEY --trap-config-address YOUR_TRAP_ADDRESS\e[0m"
-echo -e "4. Check your node status at: \e[1;33mhttps://app.drosera.io/trap?trapId=YOUR_TRAP_ADDRESS\e[0m"
-echo ""
-echo -e "\e[1;33mNote: If you see 'WARN drosera_services::network::service: Failed to gossip message: InsufficientPeers',\nthis is normal and not a problem.\e[0m"
-echo ""
-echo -e "\e[1;32mThank you for running a Drosera Network node!\e[0m"
+echo -e "3. Opt-in to your trap with: ${YELLOW}drosera-operator optin --eth-rpc-url $ETH_RPC_URL --eth-private-key $EVM_PRIVATE_KEY --trap-config-address YOUR_TRAP_ADDRESS${RESET}"
+echo -e "4. Check your node status at: ${YELLOW}https://app.drosera.io/trap?trapId=YOUR_TRAP_ADDRESS${RESET}"
+
+echo -e "\n${YELLOW}Note: If you see 'WARN drosera_services::network::service: Failed to gossip message: InsufficientPeers',\nthis is normal and not a problem.${RESET}"
+
+echo -e "\n${GREEN}Thank you for running a Drosera Network node!${RESET}"

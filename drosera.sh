@@ -106,7 +106,7 @@ print_yellow "Installing Drosera..."
 curl -L https://app.drosera.io/install | bash
 check_error "installing Drosera"
 
-source ~/.bashrc
+source /root/.bashrc
 droseraup
 check_error "running droseraup"
 
@@ -114,7 +114,7 @@ print_yellow "Installing Foundry..."
 curl -L https://foundry.paradigm.xyz | bash
 check_error "installing Foundry"
 
-source ~/.bashrc
+source /root/.bashrc
 foundryup
 check_error "running foundryup"
 
@@ -122,7 +122,7 @@ print_yellow "Installing Bun..."
 curl -fsSL https://bun.sh/install | bash
 check_error "installing Bun"
 
-source ~/.bashrc
+source /root/.bashrc
 
 print_yellow "Setting up Drosera trap project..."
 mkdir my-drosera-trap

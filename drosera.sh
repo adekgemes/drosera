@@ -105,15 +105,43 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 # Test Docker installation
 sudo docker run hello-world
 
-# Step 3: Trap Project Setup
-echo -e "\n${YELLOW}[Step 3/9] Setting Up Drosera Trap Project...${RESET}"
+# Step 3: Install Foundry CLI, Bun, and Drosera CLI
+echo -e "\n${YELLOW}[Step 3/9] Installing Development Tools...${RESET}"
+# Drosera CLI
+curl -L https://app.drosera.io/install | bash
+
+# Foundry CLI
+curl -L https://foundry.paradigm.xyz | bash
+
+# Bun
+curl -fsSL https://bun.sh/install | bash
+
+# Source all potential shell configuration files
+source "$HOME/.bashrc"
+source "$HOME/.bash_profile"
+source "$HOME/.profile"
+
+# Ensure paths are set
+export PATH="$HOME/.foundry/bin:$HOME/.drosera/bin:$HOME/.bun/bin:$PATH"
+
+# Install Foundry tools
+$HOME/.foundry/bin/foundryup || echo "It's normal if foundryup shows a usage message."
+
+# Verify installed tools
+echo -e "\n${YELLOW}Checking installed tools...${RESET}"
+which forge || error_exit "Forge not installed"
+which bun || error_exit "Bun not installed"
+which drosera || error_exit "Drosera CLI not installed"
+
+# Step 4: Trap Project Setup
+echo -e "\n${YELLOW}[Step 4/9] Setting Up Drosera Trap Project...${RESET}"
 mkdir -p "$HOME/my-drosera-trap"
 cd "$HOME/my-drosera-trap" || error_exit "Cannot create trap directory"
 
 # Initialize Trap Project
-forge init -t drosera-network/trap-foundry-template
-bun install
-forge build
+$HOME/.foundry/bin/forge init -t drosera-network/trap-foundry-template
+$HOME/.bun/bin/bun install
+$HOME/.foundry/bin/forge build
 
 # Create Drosera Configuration
 cat > drosera.toml << EOL
@@ -124,26 +152,8 @@ private_trap = false
 EOL
 
 # Deploy Trap
-echo -e "\n${YELLOW}[Step 4/9] Deploying Trap...${RESET}"
-DROSERA_PRIVATE_KEY="$EVM_PRIVATE_KEY" drosera apply
-
-# Step 4: Install Drosera CLI
-echo -e "\n${YELLOW}[Step 5/9] Installing Drosera CLI...${RESET}"
-curl -L https://app.drosera.io/install | bash
-source "$HOME/.bashrc"
-export PATH="$PATH:$HOME/.drosera/bin"
-droseraup || echo "It's normal if droseraup shows a usage message."
-
-# Step 5: Install Foundry CLI and Bun
-echo -e "\n${YELLOW}[Step 6/9] Installing Foundry CLI and Bun...${RESET}"
-curl -L https://foundry.paradigm.xyz | bash
-source "$HOME/.bashrc"
-export PATH="$PATH:$HOME/.foundry/bin"
-foundryup || echo "It's normal if foundryup shows a usage message."
-
-curl -fsSL https://bun.sh/install | bash
-source "$HOME/.bashrc"
-export PATH="$PATH:$HOME/.bun/bin"
+echo -e "\n${YELLOW}[Step 5/9] Deploying Trap...${RESET}"
+DROSERA_PRIVATE_KEY="$EVM_PRIVATE_KEY" $HOME/.drosera/bin/drosera apply
 
 # Step 6: Install Operator CLI
 echo -e "\n${YELLOW}[Step 7/9] Installing Operator CLI...${RESET}"

@@ -95,20 +95,16 @@ function install_drosera_cli {
     echo -e "${YELLOW}Menginstall Drosera CLI...${NC}"
     line
     
-    # Source bash profile sebelum instalasi
-    source /root/.bashrc
-    
     curl -L https://app.drosera.io/install | bash
     check_status $?
     
-    # Source lagi setelah instalasi
-    source /root/.bashrc
+    echo -e "${YELLOW}Melakukan source bash profile...${NC}"
     
-    # Jalankan droseraup secara eksplisit
-    echo -e "${YELLOW}Menjalankan droseraup...${NC}"
-    droseraup
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.drosera/bin:$PATH"
     
     echo -e "${GREEN}Drosera CLI berhasil diinstall!${NC}"
+    echo -e "${YELLOW}Catatan: Jalankan 'source /root/.bashrc' secara manual jika mengalami masalah dengan command drosera${NC}"
 }
 
 function install_foundry {
@@ -116,20 +112,16 @@ function install_foundry {
     echo -e "${YELLOW}Menginstall Foundry CLI...${NC}"
     line
     
-    # Source bash profile sebelum instalasi
-    source /root/.bashrc
-    
     curl -L https://foundry.paradigm.xyz | bash
     check_status $?
     
-    # Source lagi setelah instalasi
-    source /root/.bashrc
+    echo -e "${YELLOW}Melakukan source bash profile...${NC}"
     
-    # Jalankan foundryup secara eksplisit
-    echo -e "${YELLOW}Menjalankan foundryup...${NC}"
-    foundryup
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.foundry/bin:$PATH"
     
     echo -e "${GREEN}Foundry CLI berhasil diinstall!${NC}"
+    echo -e "${YELLOW}Catatan: Jalankan 'source /root/.bashrc' secara manual jika mengalami masalah dengan command foundry${NC}"
 }
 
 function install_bun {
@@ -137,16 +129,44 @@ function install_bun {
     echo -e "${YELLOW}Menginstall Bun...${NC}"
     line
     
-    # Source bash profile sebelum instalasi
-    source /root/.bashrc
-    
     curl -fsSL https://bun.sh/install | bash
     check_status $?
     
-    # Source lagi setelah instalasi
-    source /root/.bashrc
+    echo -e "${YELLOW}Melakukan source bash profile...${NC}"
+    
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.bun/bin:$PATH"
     
     echo -e "${GREEN}Bun berhasil diinstall!${NC}"
+    echo -e "${YELLOW}Catatan: Jalankan 'source /root/.bashrc' secara manual jika mengalami masalah dengan command bun${NC}"
+}
+
+function update_drosera_cli {
+    line
+    echo -e "${YELLOW}Memperbarui Drosera CLI...${NC}"
+    line
+    
+    # Gunakan path langsung ke droseraup
+    if [ -f "$HOME/.drosera/bin/droseraup" ]; then
+        echo -e "${YELLOW}Menjalankan droseraup...${NC}"
+        $HOME/.drosera/bin/droseraup
+    else
+        echo -e "${RED}droseraup tidak ditemukan. Pastikan Drosera CLI sudah terinstal dengan benar.${NC}"
+    fi
+}
+
+function update_foundry_cli {
+    line
+    echo -e "${YELLOW}Memperbarui Foundry CLI...${NC}"
+    line
+    
+    # Gunakan path langsung ke foundryup
+    if [ -f "$HOME/.foundry/bin/foundryup" ]; then
+        echo -e "${YELLOW}Menjalankan foundryup...${NC}"
+        $HOME/.foundry/bin/foundryup
+    else
+        echo -e "${RED}foundryup tidak ditemukan. Pastikan Foundry CLI sudah terinstal dengan benar.${NC}"
+    fi
 }
 
 function setup_trap {
@@ -154,13 +174,12 @@ function setup_trap {
     echo -e "${YELLOW}Menyiapkan Trap...${NC}"
     line
     
-    # Sourceing bash profile terlebih dahulu
-    source /root/.bashrc
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
     
-    # Menjalankan droseraup dan foundryup untuk memastikan CLI terbaru
-    echo -e "${YELLOW}Memastikan CLI terbaru...${NC}"
-    droseraup
-    foundryup
+    # Perbarui CLI jika tersedia
+    update_drosera_cli
+    update_foundry_cli
     
     # Membuat direktori untuk trap
     mkdir -p $HOME/my-drosera-trap
@@ -174,12 +193,25 @@ function setup_trap {
     git config --global user.name "$GITHUB_USERNAME"
     
     # Initialize trap
-    forge init -t drosera-network/trap-foundry-template
+    if [ -f "$HOME/.foundry/bin/forge" ]; then
+        $HOME/.foundry/bin/forge init -t drosera-network/trap-foundry-template
+    else
+        forge init -t drosera-network/trap-foundry-template
+    fi
     check_status $?
     
     # Compile trap
-    bun install
-    forge build
+    if [ -f "$HOME/.bun/bin/bun" ]; then
+        $HOME/.bun/bin/bun install
+    else
+        bun install
+    fi
+    
+    if [ -f "$HOME/.foundry/bin/forge" ]; then
+        $HOME/.foundry/bin/forge build
+    else
+        forge build
+    fi
     
     echo -e "${GREEN}Trap berhasil disiapkan!${NC}"
 }
@@ -189,12 +221,11 @@ function deploy_trap {
     echo -e "${YELLOW}Mendeploy Trap...${NC}"
     line
     
-    # Sourceing bash profile terlebih dahulu
-    source /root/.bashrc
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
     
-    # Menjalankan droseraup untuk memastikan CLI terbaru
-    echo -e "${YELLOW}Memastikan CLI terbaru...${NC}"
-    droseraup
+    # Perbarui CLI jika tersedia
+    update_drosera_cli
     
     cd $HOME/my-drosera-trap
     
@@ -214,12 +245,11 @@ function config_whitelist_operator {
     echo -e "${YELLOW}Mengkonfigurasi Whitelist Operator...${NC}"
     line
     
-    # Sourceing bash profile terlebih dahulu
-    source /root/.bashrc
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
     
-    # Menjalankan droseraup untuk memastikan CLI terbaru
-    echo -e "${YELLOW}Memastikan CLI terbaru...${NC}"
-    droseraup
+    # Perbarui CLI jika tersedia
+    update_drosera_cli
     
     cd $HOME/my-drosera-trap
     
@@ -244,8 +274,8 @@ function install_operator_cli {
     echo -e "${YELLOW}Menginstall Operator CLI...${NC}"
     line
     
-    # Sourceing bash profile terlebih dahulu
-    source /root/.bashrc
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
     
     cd $HOME
     
@@ -273,8 +303,8 @@ function register_operator {
     echo -e "${YELLOW}Mendaftarkan Operator...${NC}"
     line
     
-    # Sourceing bash profile terlebih dahulu
-    source /root/.bashrc
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
     
     # Masukkan private key
     read -sp "Masukkan EVM wallet private key Anda: " PRIVATE_KEY
@@ -307,8 +337,8 @@ function install_docker_operator {
     echo -e "${YELLOW}Menginstall Operator dengan Docker...${NC}"
     line
     
-    # Sourceing bash profile terlebih dahulu
-    source /root/.bashrc
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
     
     # Stop dan disable systemd jika berjalan
     sudo systemctl stop drosera 2>/dev/null
@@ -342,8 +372,8 @@ function install_systemd_operator {
     echo -e "${YELLOW}Menginstall Operator dengan SystemD...${NC}"
     line
     
-    # Sourceing bash profile terlebih dahulu
-    source /root/.bashrc
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
     
     # Masukkan konfigurasi
     read -sp "Masukkan EVM wallet private key Anda: " PRIVATE_KEY
@@ -390,12 +420,11 @@ function send_bloom {
     echo -e "${YELLOW}Mengirim Bloom...${NC}"
     line
     
-    # Sourceing bash profile terlebih dahulu
-    source /root/.bashrc
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
     
-    # Menjalankan droseraup untuk memastikan CLI terbaru
-    echo -e "${YELLOW}Memastikan CLI terbaru...${NC}"
-    droseraup
+    # Perbarui CLI jika tersedia
+    update_drosera_cli
     
     echo -e "${GREEN}Untuk mengirim bloom boost, silakan mengunjungi dashboard Drosera:${NC}"
     echo -e "${BLUE}https://app.drosera.io/${NC}"
@@ -441,36 +470,26 @@ function setup_trap_environment {
     echo -e "${YELLOW}Setup Trap Environment (Drosera, Foundry, Bun CLI)...${NC}"
     line
     
-    # Pastikan source bash profile sebelum setiap instalasi
-    source /root/.bashrc
-    
-    # Install Drosera CLI
+    # Instalasi CLI
     install_drosera_cli
-    
-    # Source lagi untuk memastikan perubahan diterapkan
-    source /root/.bashrc
-    
-    # Pastikan droseraup sudah dijalankan
-    echo -e "${YELLOW}Memastikan Drosera CLI terbaru...${NC}"
-    droseraup
-    
-    # Install Foundry CLI
     install_foundry
-    
-    # Source lagi untuk memastikan perubahan diterapkan
-    source /root/.bashrc
-    
-    # Pastikan foundryup sudah dijalankan
-    echo -e "${YELLOW}Memastikan Foundry CLI terbaru...${NC}"
-    foundryup
-    
-    # Install Bun
     install_bun
     
-    # Source lagi untuk memastikan perubahan diterapkan
-    source /root/.bashrc
+    # Ekspor PATH untuk CLI yang baru diinstal
+    export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
     
     echo -e "${GREEN}Setup Trap Environment berhasil diselesaikan!${NC}"
+    echo -e "${YELLOW}PERHATIAN: Anda perlu menjalankan 'source /root/.bashrc' secara manual sebelum melanjutkan ke langkah berikutnya!${NC}"
+    echo -e "${YELLOW}Atau restart terminal Anda untuk memuat perubahan PATH.${NC}"
+    
+    # Beri pesan bahwa perlu me-restart shell atau source .bashrc
+    read -p "Apakah Anda ingin menjalankan 'source /root/.bashrc' sekarang? (y/n): " restart_shell
+    if [[ "$restart_shell" == "y" || "$restart_shell" == "Y" ]]; then
+        source /root/.bashrc
+        echo -e "${GREEN}Bash profile telah di-source.${NC}"
+    else
+        echo -e "${YELLOW}Silakan jalankan 'source /root/.bashrc' sebelum melanjutkan.${NC}"
+    fi
 }
 
 function show_menu {
@@ -494,7 +513,8 @@ function show_menu {
     echo -e "${GREEN}12.${NC} Send Bloom & Run Dryrun"
     echo -e "${GREEN}13.${NC} Opt-in Trap in Dashboard"
     echo -e "${GREEN}14.${NC} Check Node Status"
-    echo -e "${GREEN}15.${NC} Full Installation (Steps 1-13)"
+    echo -e "${GREEN}15.${NC} Source /root/.bashrc (Perbarui PATH)"
+    echo -e "${GREEN}16.${NC} Full Installation (Steps 1-13)"
     echo -e "${GREEN}0.${NC} Exit"
     line
     
@@ -506,10 +526,8 @@ function show_menu {
         3) configure_rpc ;;
         4) setup_trap_environment ;;
         5) 
-            source /root/.bashrc
-            # Eksplisit jalankan droseraup dan foundryup sebelum setup trap
-            droseraup
-            foundryup
+            # Ekspor PATH untuk CLI yang baru diinstal
+            export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
             setup_trap
             deploy_trap
             ;;
@@ -522,16 +540,22 @@ function show_menu {
         12) send_bloom ;;
         13) opt_in_trap ;;
         14) check_node_status ;;
-        15)
+        15) 
+            source /root/.bashrc
+            echo -e "${GREEN}Bash profile telah di-source. PATH sudah diperbarui.${NC}"
+            ;;
+        16)
             install_dependencies
             install_docker
             configure_rpc
             setup_trap_environment
             
-            # Eksplisit jalankan droseraup dan foundryup sebelum setup trap
+            # Perlu restart shell atau source .bashrc untuk memuat perubahan PATH
+            echo -e "${YELLOW}Memuat perubahan PATH...${NC}"
             source /root/.bashrc
-            droseraup
-            foundryup
+            
+            # Ekspor PATH untuk CLI yang baru diinstal
+            export PATH="$HOME/.drosera/bin:$HOME/.foundry/bin:$HOME/.bun/bin:$PATH"
             
             setup_trap
             deploy_trap

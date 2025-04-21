@@ -104,6 +104,8 @@ function install_drosera_cli {
     # Source lagi setelah instalasi
     source /root/.bashrc
     
+    # Jalankan droseraup secara eksplisit
+    echo -e "${YELLOW}Menjalankan droseraup...${NC}"
     droseraup
     
     echo -e "${GREEN}Drosera CLI berhasil diinstall!${NC}"
@@ -123,6 +125,8 @@ function install_foundry {
     # Source lagi setelah instalasi
     source /root/.bashrc
     
+    # Jalankan foundryup secara eksplisit
+    echo -e "${YELLOW}Menjalankan foundryup...${NC}"
     foundryup
     
     echo -e "${GREEN}Foundry CLI berhasil diinstall!${NC}"
@@ -152,6 +156,11 @@ function setup_trap {
     
     # Sourceing bash profile terlebih dahulu
     source /root/.bashrc
+    
+    # Menjalankan droseraup dan foundryup untuk memastikan CLI terbaru
+    echo -e "${YELLOW}Memastikan CLI terbaru...${NC}"
+    droseraup
+    foundryup
     
     # Membuat direktori untuk trap
     mkdir -p $HOME/my-drosera-trap
@@ -183,6 +192,10 @@ function deploy_trap {
     # Sourceing bash profile terlebih dahulu
     source /root/.bashrc
     
+    # Menjalankan droseraup untuk memastikan CLI terbaru
+    echo -e "${YELLOW}Memastikan CLI terbaru...${NC}"
+    droseraup
+    
     cd $HOME/my-drosera-trap
     
     # Masukkan private key
@@ -203,6 +216,10 @@ function config_whitelist_operator {
     
     # Sourceing bash profile terlebih dahulu
     source /root/.bashrc
+    
+    # Menjalankan droseraup untuk memastikan CLI terbaru
+    echo -e "${YELLOW}Memastikan CLI terbaru...${NC}"
+    droseraup
     
     cd $HOME/my-drosera-trap
     
@@ -376,6 +393,10 @@ function send_bloom {
     # Sourceing bash profile terlebih dahulu
     source /root/.bashrc
     
+    # Menjalankan droseraup untuk memastikan CLI terbaru
+    echo -e "${YELLOW}Memastikan CLI terbaru...${NC}"
+    droseraup
+    
     echo -e "${GREEN}Untuk mengirim bloom boost, silakan mengunjungi dashboard Drosera:${NC}"
     echo -e "${BLUE}https://app.drosera.io/${NC}"
     
@@ -429,11 +450,19 @@ function setup_trap_environment {
     # Source lagi untuk memastikan perubahan diterapkan
     source /root/.bashrc
     
+    # Pastikan droseraup sudah dijalankan
+    echo -e "${YELLOW}Memastikan Drosera CLI terbaru...${NC}"
+    droseraup
+    
     # Install Foundry CLI
     install_foundry
     
     # Source lagi untuk memastikan perubahan diterapkan
     source /root/.bashrc
+    
+    # Pastikan foundryup sudah dijalankan
+    echo -e "${YELLOW}Memastikan Foundry CLI terbaru...${NC}"
+    foundryup
     
     # Install Bun
     install_bun
@@ -478,6 +507,9 @@ function show_menu {
         4) setup_trap_environment ;;
         5) 
             source /root/.bashrc
+            # Eksplisit jalankan droseraup dan foundryup sebelum setup trap
+            droseraup
+            foundryup
             setup_trap
             deploy_trap
             ;;
@@ -495,6 +527,12 @@ function show_menu {
             install_docker
             configure_rpc
             setup_trap_environment
+            
+            # Eksplisit jalankan droseraup dan foundryup sebelum setup trap
+            source /root/.bashrc
+            droseraup
+            foundryup
+            
             setup_trap
             deploy_trap
             config_whitelist_operator

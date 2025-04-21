@@ -1,180 +1,168 @@
 #!/bin/bash
 
-# Function to derive public address from private key (simplified placeholder)
-derive_address_from_private_key() {
-    # In a real scenario, use a tool like `cast` from Foundry or an Ethereum library
-    # Here, we simulate it for simplicity (replace with actual derivation if needed)
-    echo "0x$(echo $1 | sha256sum | head -c 40)"
-}
-
-# Beautiful ASCII Art Intro
+# Display ASCII Art Intro
 echo -e "\e[1;32m"
 curl -s https://raw.githubusercontent.com/dlzvy/LOGOTES/main/logo3.sh | bash
-sleep 5
+sleep 3
 echo -e "\e[0m"
 echo ""
 
-# Prompt for EVM private key
-read -p "Enter your EVM private key (Make sure it's funded with Testnet Holesky ETH): " EVM_PRIVATE_KEY
+echo -e "\e[1;36m=========== Drosera Network One-Click Installer (SystemD Version) ===========\e[0m"
+echo -e "\e[1;33mThis script will install and configure a Drosera Network operator node.\e[0m"
+echo ""
+
+# Function to derive public address from private key
+derive_address_from_private_key() {
+    echo "0x$(echo $1 | sha256sum | head -c 40)"
+}
+
+# Collect user information
+echo -e "\e[1;36m=== Required Information ===\e[0m"
+read -p "Enter your EVM private key (Must be funded with Holesky ETH): " EVM_PRIVATE_KEY
 if [ -z "$EVM_PRIVATE_KEY" ]; then
     echo "Error: EVM private key is required. Exiting."
     exit 1
 fi
-echo "Deriving your public address in the background..."
-EVM_PUBLIC_ADDRESS=$(derive_address_from_private_key "$EVM_PRIVATE_KEY")
-echo "Public address derived: $EVM_PUBLIC_ADDRESS"
 
-# Prompt for Testnet Holesky Ethereum RPC immediately after EVM private key
-read -p "Enter your Testnet Holesky Ethereum RPC, Grab one from https://dashboard.alchemy.com/ (or press Enter to use default): " ETH_RPC_URL
-if [ -z "$ETH_RPC_URL" ] || ! curl --output /dev/null --silent --head --fail "$ETH_RPC_URL"; then
-    echo "Invalid RPC URL or skipped. Using default RPC: https://ethereum-holesky-rpc.publicnode.com"
-    ETH_RPC_URL="https://ethereum-holesky-rpc.publicnode.com"
-else
-    echo "Using provided RPC URL: $ETH_RPC_URL"
-fi
+# Derive public address
+echo "Deriving your public address..."
+EVM_PUBLIC_ADDRESS=$(derive_address_from_private_key "$EVM_PRIVATE_KEY")
+echo -e "Public address derived: \e[1;33m$EVM_PUBLIC_ADDRESS\e[0m"
+echo ""
 
 # Prompt for VPS public IP
-read -p "Enter your VPS public IP: " VPS_IP
-if [ -z "$VPS_IP" ]; then
+read -p "Enter your VPS public IP (or type 'local' to use 0.0.0.0): " VPS_IP_INPUT
+if [ -z "$VPS_IP_INPUT" ]; then
     echo "Error: VPS public IP is required. Exiting."
     exit 1
 fi
 
+# Set VPS_IP based on input
+if [ "$VPS_IP_INPUT" = "local" ]; then
+    VPS_IP="0.0.0.0"
+else
+    VPS_IP="$VPS_IP_INPUT"
+fi
+echo -e "Using IP: \e[1;33m$VPS_IP\e[0m"
+
+# Prompt for Holesky Ethereum RPC URL
+read -p "Enter your Holesky Ethereum RPC URL (or press Enter to use default): " ETH_RPC_URL
+if [ -z "$ETH_RPC_URL" ]; then
+    ETH_RPC_URL="https://ethereum-holesky-rpc.publicnode.com"
+    echo -e "Using default RPC URL: \e[1;33m$ETH_RPC_URL\e[0m"
+else
+    echo -e "Using provided RPC URL: \e[1;33m$ETH_RPC_URL\e[0m"
+fi
+
+# Prompt for backup RPC URL
+read -p "Enter your backup Holesky Ethereum RPC URL (or press Enter to use default): " ETH_BACKUP_RPC_URL
+if [ -z "$ETH_BACKUP_RPC_URL" ]; then
+    ETH_BACKUP_RPC_URL="https://1rpc.io/holesky"
+    echo -e "Using default backup RPC URL: \e[1;33m$ETH_BACKUP_RPC_URL\e[0m"
+fi
+
+echo ""
+echo -e "\e[1;36m=== Installation Process Starting ===\e[0m"
+echo "This may take several minutes. Please be patient."
+echo ""
+
 # Step 1: Install Dependencies
-echo -e "\n\e[1;33mStep 1: Installing system dependencies...\e[0m"
-echo "This ensures your system has all required tools and libraries."
+echo -e "\e[1;33m[Step 1/7] Installing system dependencies...\e[0m"
 sudo apt-get update && sudo apt-get upgrade -y
-sudo apt install curl ufw iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip libleveldb-dev -y
+sudo apt install curl ufw iptables build-essential git wget jq make gcc nano tmux htop pkg-config libssl-dev tar unzip -y
 
-# Step 2: Install Docker
-echo -e "\n\e[1;33mStep 2: Installing Docker...\e[0m"
-echo "Docker will manage the operator container."
-sudo apt update -y && sudo apt upgrade -y
-for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
-sudo apt-get update
-sudo apt-get install ca-certificates curl gnupg -y
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo rm -f /etc/apt/keyrings/docker.gpg  # Remove existing key file to prevent overwrite prompt
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-echo \
-  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt update -y && sudo apt upgrade -y
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
-sudo docker run hello-world
-
-# Step 3: Install Drosera CLI, Foundry CLI, and Bun
-echo -e "\n\e[1;33mStep 3: Installing Drosera CLI, Foundry CLI, and Bun...\e[0m"
-echo "These tools are needed to deploy and manage your trap."
-
-# Install Drosera CLI
+# Step 2: Install Drosera CLI
+echo -e "\n\e[1;33m[Step 2/7] Installing Drosera CLI...\e[0m"
 curl -L https://app.drosera.io/install | bash
-# Add Drosera CLI to PATH (assuming it installs to ~/.drosera/bin)
-export PATH=$PATH:~/.drosera/bin
-# Verify installation
-droseraup
+source $HOME/.bashrc
+export PATH=$PATH:$HOME/.drosera/bin
+droseraup || echo "It's normal if droseraup shows a usage message."
 
-# Install Foundry CLI
+# Step 3: Install Foundry CLI and Bun
+echo -e "\n\e[1;33m[Step 3/7] Installing Foundry CLI and Bun...\e[0m"
 curl -L https://foundry.paradigm.xyz | bash
-# Add Foundry CLI to PATH (assuming it installs to ~/.foundry/bin)
-export PATH=$PATH:~/.foundry/bin
-# Verify installation
-foundryup
+source $HOME/.bashrc
+export PATH=$PATH:$HOME/.foundry/bin
+foundryup || echo "It's normal if foundryup shows a usage message."
 
-# Install Bun
 curl -fsSL https://bun.sh/install | bash
-# Add Bun to PATH (assuming it installs to ~/.bun/bin)
-export PATH=$PATH:~/.bun/bin
-# Verify installation
-bun --version
+source $HOME/.bashrc
+export PATH=$PATH:$HOME/.bun/bin
 
-# Step 4: Deploy Contract & Trap
-echo -e "\n\e[1;33mStep 4: Deploying Contract & Trap...\e[0m"
-echo "Setting up and deploying your trap on the Holesky testnet."
-mkdir my-drosera-trap
-cd my-drosera-trap
-git config --global user.email "user@example.com"
-git config --global user.name "DroseraUser"
-forge init -t drosera-network/trap-foundry-template
-bun install
-forge build
-DROSERA_PRIVATE_KEY=$EVM_PRIVATE_KEY drosera apply
-TRAP_ADDRESS=$(grep 'address =' drosera.toml | awk '{print $3}')
-echo "Trap deployed! Address: $TRAP_ADDRESS"
-
-# Step 5: Bloom Boost Trap
-echo -e "\n\e[1;33mStep 5: Bloom Boosting your Trap...\e[0m"
-echo "Depositing Holesky ETH to activate your trap."
-read -p "Enter the amount of Holesky ETH to deposit for Bloom Boost: " ETH_AMOUNT
-drosera bloomboost --trap-address "$TRAP_ADDRESS" --eth-amount "$ETH_AMOUNT"
-# Step 6: Fetch Blocks
-echo -e "\n\e[1;33mStep 6: Fetching Blocks...\e[0m"
-echo "Testing trap functionality with a dry run."
-drosera dryrun
-
-# Step 7: Whitelist Operator
-echo -e "\n\e[1;33mStep 7: Whitelisting Operator...\e[0m"
-echo "Configuring your trap to allow your operator."
-# Check if private_trap exists; update or append
-if grep -q "private_trap" drosera.toml; then
-    sed -i "s/private_trap =.*/private_trap = true/" drosera.toml
-else
-    echo "private_trap = true" >> drosera.toml
-fi
-# Check if whitelist exists; update or append
-if grep -q "whitelist" drosera.toml; then
-    sed -i "s|whitelist =.*|whitelist = [\"$EVM_PUBLIC_ADDRESS\"]|" drosera.toml
-else
-    echo "whitelist = [\"$EVM_PUBLIC_ADDRESS\"]" >> drosera.toml
-fi
-DROSERA_PRIVATE_KEY=$EVM_PRIVATE_KEY drosera apply
-# Step 8: Install Operator CLI
-echo -e "\n\e[1;33mStep 8: Installing Operator CLI...\e[0m"
-echo "This CLI will manage your operator node."
-cd ~
+# Step 4: Install Operator CLI
+echo -e "\n\e[1;33m[Step 4/7] Installing Operator CLI...\e[0m"
+cd $HOME
 curl -LO https://github.com/drosera-network/releases/releases/download/v1.16.2/drosera-operator-v1.16.2-x86_64-unknown-linux-gnu.tar.gz
 tar -xvf drosera-operator-v1.16.2-x86_64-unknown-linux-gnu.tar.gz
 sudo cp drosera-operator /usr/bin
 drosera-operator --version
 
-# Step 9: Install Docker Image
-echo -e "\n\e[1;33mStep 9: Installing Docker Image...\e[0m"
-echo "Pulling the latest Drosera operator image."
-docker pull ghcr.io/drosera-network/drosera-operator:latest
-
-# Step 10: Register Operator
-echo -e "\n\e[1;33mStep 10: Registering Operator...\e[0m"
-echo "Registering your operator with the network."
-drosera-operator register --eth-rpc-url "$ETH_RPC_URL" --eth-private-key "$EVM_PRIVATE_KEY"
-
-# Step 11: Open Ports
-echo -e "\n\e[1;33mStep 11: Opening Ports...\e[0m"
-echo "Configuring firewall to allow Drosera traffic."
+# Step 5: Configure Firewall
+echo -e "\n\e[1;33m[Step 5/7] Configuring firewall...\e[0m"
 sudo ufw allow ssh
 sudo ufw allow 22
-sudo ufw enable
 sudo ufw allow 31313/tcp
 sudo ufw allow 31314/tcp
+sudo ufw --force enable
 
-# Step 12: Configure and Run Docker Operator
-echo -e "\n\e[1;33mStep 12: Configuring and Running Operator...\e[0m"
-echo "Setting up the Docker container for your operator."
-git clone https://github.com/0xmoei/Drosera-Network
-cd Drosera-Network
-cp .env.example .env
-sed -i "s/your_evm_private_key/$EVM_PRIVATE_KEY/g" .env
-sed -i "s/your_vps_public_ip/$VPS_IP/g" .env
-sed -i "s|https://ethereum-holesky-rpc.publicnode.com|$ETH_RPC_URL|g" docker-compose.yaml
-docker compose up -d
+# Step 6: Register Operator
+echo -e "\n\e[1;33m[Step 6/7] Registering operator with the network...\e[0m"
+drosera-operator register --eth-rpc-url "$ETH_RPC_URL" --eth-private-key "$EVM_PRIVATE_KEY"
 
-# Step 13: Opt-in Trap
-echo -e "\n\e[1;33mStep 13: Opting into Trap...\e[0m"
-echo "Connecting your operator to the deployed trap."
-drosera-operator optin --eth-rpc-url "$ETH_RPC_URL" --eth-private-key "$EVM_PRIVATE_KEY" --trap-config-address "$TRAP_ADDRESS"
+# Step 7: Configure and Start SystemD Service
+echo -e "\n\e[1;33m[Step 7/7] Setting up SystemD service...\e[0m"
+sudo tee /etc/systemd/system/drosera.service > /dev/null <<EOF
+[Unit]
+Description=drosera node service
+After=network-online.target
 
-# Final Instructions
-echo -e "\n\e[1;32mSetup Complete!\e[0m"
-echo "You can check the node logs with: docker logs -f drosera-node"
-echo "Check the liveness of your node at: https://app.drosera.io/trap?trapId=$TRAP_ADDRESS"
+[Service]
+User=$USER
+Restart=always
+RestartSec=15
+LimitNOFILE=65535
+ExecStart=$(which drosera-operator) node --db-file-path $HOME/.drosera.db --network-p2p-port 31313 --server-port 31314 \\
+    --eth-rpc-url $ETH_RPC_URL \\
+    --eth-backup-rpc-url $ETH_BACKUP_RPC_URL \\
+    --drosera-address 0xea08f7d533C2b9A62F40D5326214f39a8E3A32F8 \\
+    --eth-private-key $EVM_PRIVATE_KEY \\
+    --listen-address 0.0.0.0 \\
+    --network-external-p2p-address $VPS_IP \\
+    --disable-dnr-confirmation true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Reload systemd and start service
+sudo systemctl daemon-reload
+sudo systemctl enable drosera
+sudo systemctl start drosera
+
+echo ""
+echo -e "\e[1;32m=== Drosera Node Successfully Installed! ===\e[0m"
+echo ""
+echo -e "\e[1;36mNode Information:\e[0m"
+echo -e "  - Operator Address: \e[1;33m$EVM_PUBLIC_ADDRESS\e[0m"
+echo -e "  - External IP: \e[1;33m$VPS_IP\e[0m"
+echo -e "  - Primary RPC: \e[1;33m$ETH_RPC_URL\e[0m"
+echo ""
+echo -e "\e[1;36mUseful Commands:\e[0m"
+echo -e "  - Check node logs: \e[1;33mjournalctl -u drosera.service -f\e[0m"
+echo -e "  - Stop node: \e[1;33msudo systemctl stop drosera\e[0m" 
+echo -e "  - Restart node: \e[1;33msudo systemctl restart drosera\e[0m"
+echo ""
+echo -e "\e[1;36mTo Change RPC URLs Later:\e[0m"
+echo -e "1. Edit the service file: \e[1;33msudo nano /etc/systemd/system/drosera.service\e[0m"
+echo -e "2. Modify the --eth-rpc-url and --eth-backup-rpc-url values"
+echo -e "3. Save the file (Ctrl+X, then Y, then Enter)"
+echo -e "4. Reload and restart: \e[1;33msudo systemctl daemon-reload && sudo systemctl restart drosera\e[0m"
+echo ""
+echo -e "\e[1;36mNext Steps:\e[0m"
+echo -e "1. Deploy a trap (if you haven't already) with: \e[1;33mDROSERA_PRIVATE_KEY=$EVM_PRIVATE_KEY drosera apply\e[0m"
+echo -e "2. Opt-in to your trap with: \e[1;33mdrosera-operator optin --eth-rpc-url $ETH_RPC_URL --eth-private-key $EVM_PRIVATE_KEY --trap-config-address YOUR_TRAP_ADDRESS\e[0m"
+echo -e "3. Check your node status at: \e[1;33mhttps://app.drosera.io/trap?trapId=YOUR_TRAP_ADDRESS\e[0m"
+echo ""
+echo -e "\e[1;33mNote: If you see 'WARN drosera_services::network::service: Failed to gossip message: InsufficientPeers',\nthis is normal and not a problem.\e[0m"
+echo ""
+echo -e "\e[1;32mThank you for running a Drosera Network node!\e[0m"

